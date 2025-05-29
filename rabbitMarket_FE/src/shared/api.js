@@ -45,8 +45,8 @@ add: (data, config) => api.post('/api/posts', data, config),
     api.put(`/api/posts`, postId, title, price, imgurl, content),
   del: (postId) => api.delete(`/api/posts`, postId),
   changeStatus: (postId) => api.patch(`/api/status`, postId),
+reportPost: (postId, data) => api.post(`/report/${postId}`, data),
 
-  // comment
   addComment: (postId, comment) => api.post(`/api/comments`, postId, comment),
   delComment: (commentId) => api.delete(`/api/comments`, commentId),
   editComment: (commentId, comment) =>

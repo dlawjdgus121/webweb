@@ -89,7 +89,20 @@ const initialPost = {
 };
 
 //middleware
-
+const reportPostAPI = (postId, reason) => {
+  return function (dispatch, getState, { history }) {
+    apis.reportPost(postId, { content: reason })
+      .then((res) => {
+        alert('신고가 접수되었습니다.');
+        // 신고 이후 게시물 정보 다시 불러오기
+        dispatch(getOnePostAPI(postId));
+      })
+      .catch((err) => {
+        alert('신고 처리 중 오류가 발생했습니다.');
+        console.error(err);
+      });
+  };
+};
 //전체 상품 조회
 const getPostAPI = () => {
   return async function (dispatch, useState, { history }) {
@@ -394,7 +407,7 @@ const actionCreators = {
   editPostAPI,
   deletePostAPI,
   statePostAPI,
-
+  reportPostAPI,
   imageAPI,
 
   searchAPI,

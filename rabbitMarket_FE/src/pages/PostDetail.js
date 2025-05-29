@@ -1,4 +1,4 @@
-// ✅ PostDetail.js (수정됨)
+// PostDetail.js (신고 팝업이 화면 중앙에 뜨도록 수정)
 
 import React from 'react';
 import { apis } from '../shared/api';
@@ -18,9 +18,14 @@ const PostDetail = (props) => {
   const post = useSelector((store) => store.post.post);
   const comment_cnt = useSelector((store) => store.post.comments.length);
   const dispatch = useDispatch();
+const [showReportModal, setShowReportModal] = React.useState(false);
+const [reportReason, setReportReason] = React.useState('');
+const [showReportPopup, setShowReportPopup] = React.useState(false);
 
   const [isId, setIsId] = React.useState('');
   const [nickname, setNickname] = React.useState('');
+  const [reportText, setReportText] = React.useState('');
+
   const postId = props.match.params.id;
   const writeUserId = post.userId;
 
@@ -43,13 +48,39 @@ const PostDetail = (props) => {
     dispatch(postActions.statePostAPI(postId));
   }
 
+  function handleReportSubmit() {
+    apis.reportPost(postId, { content: reportText })
+      .then(() => {
+        alert('신고가 접수되었습니다.');
+        setShowReportPopup(false);
+        setReportText('');  
+      })
+      .catch(() => alert('신고 처리 중 오류가 발생했습니다.'));
+  }
+
+
+
   React.useEffect(() => {
     checkLogin();
     dispatch(postActions.getOnePostAPI(postId));
   }, []);
 
   return (
-    <Grid padding="0 13vw">
+    <Grid padding="0 13vw" style={{ position: 'relative' }}>
+      {post.reportCount >= 3 && (
+        <Grid padding="1vh" bg="#ffe0e0" border_radius="8px" margin="1vh 0">
+          <Text bold color="red">⚠️ 해당 게시물은 {post.reportCount}건의 신고를 당한 게시물입니다.</Text>
+<Text>최근 신고 내용:</Text>
+{post.reports && post.reports.length > 0 ? (
+  post.reports.map((report, index) => (
+    <Text key={index}>- {report.content}</Text>
+  ))
+) : (
+  <Text>신고 내역이 없습니다.</Text>
+)}
+        </Grid>
+      )}
+
       <Grid is_flex border_bottom padding="2vh 0">
         <Image src={post.imgurl} size="30" />
         <Grid width="57%">
@@ -116,6 +147,59 @@ const PostDetail = (props) => {
           </Grid>
         </Grid>
       )}
+
+      {isId !== writeUserId && (
+        <Grid margin="2vh 0 0">
+              <Button
+            text="🚨 상품 신고"
+              _onClick={() => setShowReportModal(true)}
+              border_radius="2px"
+              padding="0.3rem 0.7rem"
+            />
+        </Grid>
+      )}
+
+      {/* 신고 팝업 */}
+       {showReportModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            background: '#fff',
+            padding: '2rem',
+            borderRadius: '1rem',
+            width: '90%',
+            maxWidth: '400px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+          }}>
+            <h3 style={{ marginBottom: '1rem' }}>신고 사유를 입력하세요</h3>
+            <textarea
+              style={{ width: '100%', height: '100px', marginBottom: '1rem', resize: 'none' }}
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <Button text="취소" _onClick={() => setShowReportModal(false)} />
+              <Button
+                text="신고하기"
+                _onClick={() => {
+                  dispatch(postActions.reportPostAPI(postId, reportReason));
+                  setShowReportModal(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
     </Grid>
   );
 };
