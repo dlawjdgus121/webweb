@@ -20,7 +20,6 @@ const Sidebar = () => {
        <MenuItem as="div">마이페이지</MenuItem>
         {hoverMypage && (
           <SubMenu>
-            <Link to="/edit-profile">회원정보 수정</Link>
 <Link to="/withdraw">회원 탈퇴</Link>
           </SubMenu>
         )}

@@ -54,9 +54,9 @@ const PostDetail = (props) => {
         <Image src={post.imgurl} size="30" />
         <Grid width="57%">
           <Grid border_bottom>
-            <Text size="2.5vw" bold>{post.title}</Text>
+            <Text size="3vw" bold>{post.title}</Text>
             <Text size="3vw" bold>{numberWithCommas(post.price)} 원</Text>
-            <Text size="1.2rem">작성자: {post.nickname}</Text>
+            <Text size="2vw">작성자: {post.nickname}</Text>
           </Grid>
           <Text size="1.5vw" is_end>{transformDate(post.createdAt)}</Text>
           <Text size="1.5vw" is_end>{post.isSold ? '판매 완료' : '판매중'}</Text>
@@ -86,7 +86,7 @@ const PostDetail = (props) => {
       </Grid>
 
       <CommentWrite postId={postId} />
-      <Text size=".4rem" margin="0.5rem 0 0 0">댓글 수 : {comment_cnt}개</Text>
+      <Text size="1.1vw" margin="0.5rem 0 0 0">댓글 수 : {comment_cnt}개</Text>
       <CommentList postId={postId} />
 
       {isId === writeUserId && (

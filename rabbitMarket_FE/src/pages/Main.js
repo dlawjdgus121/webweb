@@ -13,9 +13,12 @@ import { useSelector, useDispatch } from 'react-redux';
 import { actionCreators as postActions } from '../redux/modules/post';
 
 const Main = (props) => {
+
+  
   const dispatch = useDispatch();
   const post_list = useSelector((state) => state.post.list);
   const filterState = useSelector((state) => state.post.filterState);
+  const user=useSelector((state)=>state.user.user);
   const { history } = props;
 
   React.useEffect(() => {
@@ -49,6 +52,10 @@ const Main = (props) => {
               border
               cursor
               _onClick={() => {
+                if(!user){
+                  alert("로그인 후 게시글을 볼 수 있습니다.");
+                  return;
+                }
                 history.push(`/post/${p.id}`);
               }}
             >
