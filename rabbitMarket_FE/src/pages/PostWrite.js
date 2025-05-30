@@ -31,7 +31,7 @@ console.log('img_url:', img_url);
   const [fileImage, setFileImage] = React.useState(
     post.imgurl !== '' && is_edit
       ? post.imgurl
-      : 'https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FlOeQ2%2Fbtrtys8M1UX%2FEXvjbkD77erg12mnimKaK0%2Fimg.png'
+      : '/img/image.png'
   );
 
   const editPost = () => {
@@ -108,9 +108,7 @@ console.log('img_url:', img_url);
           <Input type="text" value={title} _onChange={changeTitle} />
         </Grid>
         <Grid width="6rem">
-          <Text font=".7rem" bold>
-            0/40
-          </Text>
+          
         </Grid>
       </Grid>
       {/* 판매 가격 */}

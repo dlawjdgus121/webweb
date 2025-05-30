@@ -138,12 +138,3 @@ const CommentItem = (props) => {
 };
 
 
-CommentItem.defaultProps = {
-  commentId: 'test123',
-  comment: '좋은 상품이네요',
-  postId: '123',
-  nickname: '쇼핑하는 토끼',
-  userId: 'user12345',
-  createdAt: '2022-02-12T15:40:03.201Z',
-  updatedAt: '2022-02-12T15:40:03.201Z',
-};

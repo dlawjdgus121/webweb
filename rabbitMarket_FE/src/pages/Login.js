@@ -72,7 +72,7 @@ const [pwd, setPwd] = React.useState('');
           border="1px solid #d3d3d3"
           center
         >
-          <Text>아직 토끼장터 회원이 아니시라면?</Text>
+          <Text>아직 성결마켓 회원이 아니시라면?</Text>
           <Grid
             _onClick={() => {
               history.push('/signup');

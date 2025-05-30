@@ -22,7 +22,7 @@ const Footer = () => {
                 <li>
                   <div className="img_wrap">
                     <img
-                      src="https://user-images.githubusercontent.com/82128525/154397763-76c59dc1-cbad-4d02-991a-5caceb6cba79.png"
+                      src="/img/logo.png"
                       alt=""
                     />
                   </div>
@@ -57,7 +57,7 @@ const Footer = () => {
           {/* Footer Bottom */}
           <div className="footer-bottom">
             <p className="text-xs-center">
-              &copy;{new Date().getFullYear()} Rabbit Market - All Rights
+              &copy;{new Date().getFullYear()} - SKU Market -
             </p>
           </div>
         </div>
@@ -74,8 +74,8 @@ const FooterContainer = styled.footer`
   }
 
   .footer-bottom {
-    padding-top: 3rem;
-    padding-bottom: 2rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
   }
   .img_wrap {
     width: 10rem;
