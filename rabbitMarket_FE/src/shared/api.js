@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { reportPostAPI } from '../redux/modules/post';
 
 const token = localStorage.getItem('login-token');
 
@@ -42,10 +43,10 @@ add: (data, config) => api.post('/api/posts', data, config),
     },
   }),
   edit: (postId, title, price, imgurl, content) =>
-    api.put(`/api/posts`, postId, title, price, imgurl, content),
+    api.put(`/api/posts`, {postId, title, price, imgurl, content}),
   del: (postId) => api.delete(`/api/posts`, postId),
   changeStatus: (postId) => api.patch(`/api/status`, postId),
-reportPost: (postId, data) => api.post(`/report/${postId}`, data),
+reportPost: (postId, data) => api.post(`/api/report/${postId}`, data),
 
   addComment: (postId, comment) => api.post(`/api/comments`, postId, comment),
   delComment: (commentId) => api.delete(`/api/comments`, commentId),

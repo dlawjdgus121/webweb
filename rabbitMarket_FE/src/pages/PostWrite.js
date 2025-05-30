@@ -33,10 +33,10 @@ console.log('img_url:', img_url);
       ? post.imgurl
       : '/img/image.png'
   );
-
+console.log(post._id);
   const editPost = () => {
     dispatch(
-      postActions.editPostAPI(post.id, title, price, fileImage, contents)
+      postActions.editPostAPI(post._id, title, price, fileImage, contents)
     );
   };
 

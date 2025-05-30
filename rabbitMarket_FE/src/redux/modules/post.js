@@ -2,6 +2,7 @@ import { createAction, handleActions } from 'redux-actions';
 import { immerable, produce } from 'immer';
 import axios from 'axios';
 import { apis } from '../../shared/api';
+import { useParams } from "react-router-dom";
 
 // post
 const SET_POST = 'SET_POST';
@@ -88,21 +89,25 @@ const initialPost = {
   isSold: false,
 };
 
-//middleware
-const reportPostAPI = (postId, reason) => {
+export const reportPostAPI = (postId, reason) => {
   return function (dispatch, getState, { history }) {
-    apis.reportPost(postId, { content: reason })
+    if (!postId || !reason) {
+      alert('잘못된 신고 정보입니다.');
+      return Promise.reject('Invalid report data');
+    }
+    return apis.reportPost(postId, { content: reason })
       .then((res) => {
         alert('신고가 접수되었습니다.');
-        // 신고 이후 게시물 정보 다시 불러오기
         dispatch(getOnePostAPI(postId));
       })
       .catch((err) => {
         alert('신고 처리 중 오류가 발생했습니다.');
         console.error(err);
+        throw err;
       });
   };
 };
+
 //전체 상품 조회
 const getPostAPI = () => {
   return async function (dispatch, useState, { history }) {
@@ -142,6 +147,7 @@ const addPostAPI = (title, price, imgurl = '', content) => {
 const getOnePostAPI = (postId) => {
   return async function (dispatch, useState, { history }) {
     await apis.post(postId).then(function (res) {
+      
       dispatch(getOnePost(res.data.post, res.data.comments));
       // 해당 글의 댓글 가져오기
       dispatch(getComments(res.data.comments));
@@ -152,17 +158,15 @@ const getOnePostAPI = (postId) => {
 const editPostAPI = (postId, title, price, imgurl, content) => {
   return async function (dispatch, useState, { history }) {
     const token = localStorage.getItem('login-token');
-    console.log('확인하기', postId, title, price, imgurl, content);
-    apis
-      .edit(
-        { postId, title, price, imgurl, content },
-        {
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json'  },
-        }
-      )
-      .then(function (res) {
-        history.replace('/');
-      });
+    
+     console.log('확인하기', postId, title, price, imgurl, content);
+   apis
+  .edit(postId, title, price, imgurl, content, {
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  })
+  .then((res) => {
+    history.replace('/');
+  });
   };
 };
 //판매 상품 삭제

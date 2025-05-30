@@ -13,6 +13,7 @@ import { numberWithCommas } from '../shared/numberWithCommas';
 import { useDispatch, useSelector } from 'react-redux';
 import { actionCreators as postActions } from '../redux/modules/post';
 import { history } from '../redux/configureStore';
+import { reportPostAPI } from '../redux/modules/post';  // 경로는 상황에 맞게 변경
 
 const PostDetail = (props) => {
   const post = useSelector((store) => store.post.post);
@@ -47,16 +48,8 @@ const [showReportPopup, setShowReportPopup] = React.useState(false);
   function setState() {
     dispatch(postActions.statePostAPI(postId));
   }
+const hasReported = post.reports?.some(report => report.userId === isId);
 
-  function handleReportSubmit() {
-    apis.reportPost(postId, { content: reportText })
-      .then(() => {
-        alert('신고가 접수되었습니다.');
-        setShowReportPopup(false);
-        setReportText('');  
-      })
-      .catch(() => alert('신고 처리 중 오류가 발생했습니다.'));
-  }
 
 
 
@@ -148,16 +141,23 @@ const [showReportPopup, setShowReportPopup] = React.useState(false);
         </Grid>
       )}
 
-      {isId !== writeUserId && (
-        <Grid margin="2vh 0 0">
-              <Button
-            text="🚨 상품 신고"
-              _onClick={() => setShowReportModal(true)}
-              border_radius="2px"
-              padding="0.3rem 0.7rem"
-            />
-        </Grid>
-      )}
+     {isId !== writeUserId && (
+  <Grid margin="2vh 0 0">
+    <Button
+      text={hasReported ? "이미 신고한 게시물입니다" : "🚨 상품 신고"}
+      _onClick={() => {
+        if (hasReported) {
+          alert("이미 이 게시물에 대해 신고하셨습니다.");
+          return;
+        }
+        setShowReportModal(true);
+      }}
+      disabled={hasReported}
+      border_radius="2px"
+      padding="0.3rem 0.7rem"
+    />
+  </Grid>
+)}
 
       {/* 신고 팝업 */}
        {showReportModal && (
