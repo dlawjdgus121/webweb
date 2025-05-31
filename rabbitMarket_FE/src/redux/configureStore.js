@@ -5,13 +5,14 @@ import { connectRouter } from 'connected-react-router';
 
 import User from './modules/user';
 import Post from './modules/post';
-
+import wishlist from './modules/wishlist';
 // 1. 히스토리 객체 생성
 export const history = createBrowserHistory();
 
 const rootReducer = combineReducers({
   user: User,
   post: Post,
+    wishlist,
   // 2. 리덕스에 넣어준다.
   router: connectRouter(history),
 });

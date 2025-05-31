@@ -13,6 +13,7 @@ import { numberWithCommas } from '../shared/numberWithCommas';
 import { useDispatch, useSelector } from 'react-redux';
 import { actionCreators as postActions } from '../redux/modules/post';
 import { history } from '../redux/configureStore';
+import { reportPostAPI } from '../redux/modules/post';  // 경로는 상황에 맞게 변경
 
 const PostDetail = (props) => {
   const post = useSelector((store) => store.post.post);
@@ -21,10 +22,11 @@ const PostDetail = (props) => {
 const [showReportModal, setShowReportModal] = React.useState(false);
 const [reportReason, setReportReason] = React.useState('');
 const [showReportPopup, setShowReportPopup] = React.useState(false);
-
+const [hasReportedLocally, setHasReportedLocally] = React.useState(false);
   const [isId, setIsId] = React.useState('');
   const [nickname, setNickname] = React.useState('');
   const [reportText, setReportText] = React.useState('');
+const [isWishlisted, setIsWishlisted] = React.useState(false);
 
   const postId = props.match.params.id;
   const writeUserId = post.userId;
@@ -47,23 +49,35 @@ const [showReportPopup, setShowReportPopup] = React.useState(false);
   function setState() {
     dispatch(postActions.statePostAPI(postId));
   }
+const hasReported = post.reports?.some(report => report.userId === isId) || hasReportedLocally;
 
-  function handleReportSubmit() {
-    apis.reportPost(postId, { content: reportText })
-      .then(() => {
-        alert('신고가 접수되었습니다.');
-        setShowReportPopup(false);
-        setReportText('');  
-      })
-      .catch(() => alert('신고 처리 중 오류가 발생했습니다.'));
+
+
+
+ React.useEffect(() => {
+  checkLogin();
+  dispatch(postActions.getOnePostAPI(postId));
+
+  const token = localStorage.getItem('login-token');
+  if (token) {
+    const fetchWishlist = async () => {
+      try {
+        const config = {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        };
+        const res = await apis.checkWishlist(postId, config);
+        console.log(res.data);
+        console.log(res.data.isWishlisted);
+        setIsWishlisted(res.data.isWishlisted);
+      } catch (err) {
+        console.log('❌ 찜 여부 확인 실패', err);
+      }
+    };
+    fetchWishlist();
   }
-
-
-
-  React.useEffect(() => {
-    checkLogin();
-    dispatch(postActions.getOnePostAPI(postId));
-  }, []);
+},[postId]);
 
   return (
     <Grid padding="0 13vw" style={{ position: 'relative' }}>
@@ -81,7 +95,7 @@ const [showReportPopup, setShowReportPopup] = React.useState(false);
         </Grid>
       )}
 
-      <Grid is_flex border_bottom padding="2vh 0">
+         <Grid is_flex border_bottom padding="2vh 0">
         <Image src={post.imgurl} size="30" />
         <Grid width="57%">
           <Grid border_bottom>
@@ -93,20 +107,44 @@ const [showReportPopup, setShowReportPopup] = React.useState(false);
           <Text size="1.5vw" is_end>{post.isSold ? '판매 완료' : '판매중'}</Text>
 
           {isId !== writeUserId && (
-            <Grid margin="3vh 0 0">
-              <Button
-                text="💬 채팅하기"
-                _onClick={() => {
-                  history.push(`/chat/${postId}`, {
-                    postId,
-                    postTitle: post.title,
-                    buyerNickname: nickname,
-                    sellerNickname: post.nickname,
-                    roomId: `${postId}_${nickname}`,
-                  });
-                }}
-              />
-            </Grid>
+            <>
+              <Grid margin="3vh 0 0">
+                <Button
+                  text="💬 채팅하기"
+                  _onClick={() => {
+                    history.push(`/chat/${postId}`, {
+                      postId,
+                      postTitle: post.title,
+                      buyerNickname: nickname,
+                      sellerNickname: post.nickname,
+                      roomId: `${postId}_${nickname}`,
+                    });
+                  }}
+                />
+              </Grid>
+
+              <Grid margin="1vh 0">
+                <Button
+                  text={isWishlisted ? "❤️ 찜 취소" : "🤍 찜하기"}
+                  _onClick={async () => {
+                    const token = localStorage.getItem('login-token');
+                    try {
+                      if (isWishlisted) {
+                        await apis.removeFromWishlist(postId, token);
+                      } else {
+                        await apis.addToWishlist(postId, token);
+                      }
+                      setIsWishlisted(!isWishlisted);
+                    } catch (err) {
+                      alert('찜 상태 변경에 실패했습니다.');
+                      console.log(err);
+                    }
+                  }}
+               //   border_radius="2px"
+             //     padding="0.3rem 0.7rem"
+                />
+              </Grid>
+            </>
           )}
         </Grid>
       </Grid>
@@ -148,16 +186,23 @@ const [showReportPopup, setShowReportPopup] = React.useState(false);
         </Grid>
       )}
 
-      {isId !== writeUserId && (
-        <Grid margin="2vh 0 0">
-              <Button
-            text="🚨 상품 신고"
-              _onClick={() => setShowReportModal(true)}
-              border_radius="2px"
-              padding="0.3rem 0.7rem"
-            />
-        </Grid>
-      )}
+     {isId !== writeUserId && (
+  <Grid margin="2vh 0 0">
+    <Button
+      text={hasReported ? "이미 신고한 게시물입니다" : "🚨 상품 신고"}
+      _onClick={() => {
+        if (hasReported) {
+          alert("이미 이 게시물에 대해 신고하셨습니다.");
+          return;
+        }
+        setShowReportModal(true);
+      }}
+      disabled={hasReported}
+      border_radius="2px"
+      padding="0.3rem 0.7rem"
+    />
+  </Grid>
+)}
 
       {/* 신고 팝업 */}
        {showReportModal && (
@@ -189,12 +234,13 @@ const [showReportPopup, setShowReportPopup] = React.useState(false);
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
               <Button text="취소" _onClick={() => setShowReportModal(false)} />
               <Button
-                text="신고하기"
-                _onClick={() => {
-                  dispatch(postActions.reportPostAPI(postId, reportReason));
-                  setShowReportModal(false);
-                }}
-              />
+  text="신고하기"
+  _onClick={async () => {
+    await dispatch(postActions.reportPostAPI(postId, reportReason));
+    await dispatch(postActions.getOnePostAPI(postId));  // post 상태 갱신
+        setShowReportModal(false);
+  }}
+/>
             </div>
           </div>
         </div>

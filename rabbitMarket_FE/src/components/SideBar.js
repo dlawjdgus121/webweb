@@ -10,9 +10,9 @@ const Sidebar = () => {
   return (
     <SidebarContainer>
       <MenuTitle>SKU Market</MenuTitle>
-      <MenuItem href="/">홈</MenuItem>
-      <MenuItem to="/chatlist">채팅목록</MenuItem> {/* ✅ 이 줄 변경 */}
-      <MenuItem href="/wishlist">찜 목록</MenuItem>
+    <MenuItem to="/">홈</MenuItem>
+<MenuItem to="/chatlist">채팅목록</MenuItem>
+<MenuItem to="/wishlist">찜 목록</MenuItem>
        <MypageWrapper
         onMouseEnter={() => setHoverMypage(true)}
         onMouseLeave={() => setHoverMypage(false)}

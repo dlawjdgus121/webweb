@@ -4,6 +4,7 @@ import { ConnectedRouter } from 'connected-react-router';
 import { history } from '../redux/configureStore';
 import { Route } from 'react-router-dom';
 import React from 'react';
+import WishlistPage from '../pages/WishlistPage';
 
 import Main from '../pages/Main';
 import Login from '../pages/Login';
@@ -13,14 +14,13 @@ import PostDetail from '../pages/PostDetail';
 import Search from '../pages/Search';
 import ChatRoom from '../pages/ChatRoom';
 import ChatList from '../pages/ChatList';
-
+import EditProfile from "../pages/EditProfile"; // 경로는 실제 파일 경로에 맞게
 import Grid from '../elements/Grid';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
 import { useDispatch } from 'react-redux';
 import { actionCreators as userActions } from '../redux/modules/user';
-import EditProfile from '../pages/EditProfile';
 import Withdraw from '../pages/Withdraw';
 function App() {
   const dispatch = useDispatch();
@@ -44,9 +44,11 @@ function App() {
           <Route path="/write/:id" exact component={PostWrite} />
           <Route path="/post/:id" exact component={PostDetail} />
           <Route path="/search/:searchWord" exact component={Search} />
-          <Route path="/chatlist" exact component={ChatList} />
+<Route path="/wishlist" exact component={WishlistPage} />        
+  <Route path="/chatlist" exact component={ChatList} />
           <Route path="/chat/:postId" exact render={(props) => <ChatRoom {...props} />} />
-          <Route path="/edit-profile" exact component={EditProfile} />
+           <Route path="/edit-profile" exact component={EditProfile} />
+
 <Route path="/withdraw" exact component={Withdraw} />
         </Grid>
       </ConnectedRouter>
