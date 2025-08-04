@@ -1,0 +1,37 @@
+  {
+    "compilerOptions": {
+      "target": "ES2020",
+      "module": "ESNext",
+      "lib": ["ES2020", "DOM"],
+      "moduleResolution": "node",
+      "esModuleInterop": true,
+      "allowImportingTsExtensions": true,       // .ts 확장자 import 허용
+      "moduleDetection": "force",                // ESM 강제 인식 (권장)
+      "noEmit": true,         // 필수! 오류 제거
+      "forceConsistentCasingInFileNames": true,
+      "strict": false,
+      "skipLibCheck": true,
+      "resolveJsonModule": true,
+      "outDir": "dist",
+      "rootDir": "./",
+      "typeRoots": [
+        "./types",
+        "./node_modules/@types",
+        "agentica/**/*"
+      ]
+    },
+    "include": [
+      "functions/**/*",
+      "backend/**/*",
+      "notion/**/*",
+      "agentica/**/*",
+      "types/**/*",
+      "tests/**/*",
+      "utils/**/*",
+      "llm/**/*"
+  , "oracle.ts"  ],
+    "exclude": [
+      "node_modules",
+      "dist"
+    ]
+  }
