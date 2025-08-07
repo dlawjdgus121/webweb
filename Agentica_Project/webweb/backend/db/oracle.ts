@@ -1,15 +1,23 @@
 import oracledb from "oracledb";
 import dotenv from "dotenv";
-dotenv.config();
+import path from "path";
+import { fileURLToPath } from "url";
 
-oracledb.initOracleClient({ libDir: 'C:\\Users\\gram\\Desktop\\oracle\\instantclient_23_8' });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+
+oracledb.initOracleClient({ libDir: process.env.ORACLE_CLIENT_PATH! });
 
 export const oracleConfig = {
   user: process.env.ORACLE_USER,
   password: process.env.ORACLE_PW,
-  connectString: process.env.ORACLE_CONN_STR,
+  connectString: process.env.ORACLE_CONNECT,
 };
 
 export async function getConnection() {
   return await oracledb.getConnection(oracleConfig);
 }
+
+export default oracledb;

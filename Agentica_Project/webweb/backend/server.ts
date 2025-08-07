@@ -13,21 +13,23 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 // 📚 Gemini, 책 등록 관련
-import { askGemini, extractBookProperties } from "../llm/gemini/geminiSummaryTest.ts";
-import { searchBook, saveBookToNotion } from "../functions/registerBook.ts";
-import { findBookPageIdByTitle, findPageIdByBookName, updateBookProperties, createReviewPage, createReadingScheduleInNotion } from "../notion/notionUtils.ts";
-import {convertBookToBookInfo} from "../functions/registerBook.ts";
-import { insertReadingLog } from "../functions/insertReadingLog.ts"; // 경로 맞게 수정
-import { getLatestReadingLogByBookId } from "../functions/getLatestReadingLog.ts";
+import { askGemini, extractBookProperties } from "../core/llm/gemini/geminiSummaryTest.ts";
+import { searchBook, saveBookToNotion } from "../core/functions/registerBook.ts";
+import { findBookPageIdByTitle, findPageIdByBookName, updateBookProperties, createReviewPage, createReadingScheduleInNotion } from "../core/notion/notionUtils.ts";
+import {convertBookToBookInfo} from "../core/functions/registerBook.ts";
+import { insertReadingLog } from "../core/functions/insertReadingLog.ts"; // 경로 맞게 수정
+import { getLatestReadingLogByBookId } from "../core/functions/getLatestReadingLog.ts";
 // 📅 독서 일정 관련 라우터
 import readingScheduleRouter from "./routes/readingSchedule.ts";
-import { parseReadingPlan } from "../llm/gemini/parseReadingPlan.ts";
-import { registerBook } from "../functions/registerBookOracle.ts";
-import {getBookFromOracleByTitle} from "../functions/getBookFromOracleByTitle.ts"
-import { insertReadingPlan } from "../functions/insertReadingPlan.ts";
-import {getReadingPlanWithBookInfoByTitle} from "../functions/getReadingPlanWithBookInfoByTitle.ts"
+import { parseReadingPlan } from "../core/llm/gemini/parseReadingPlan.ts";
+import { registerBook } from "../core/functions/registerBookOracle.ts";
+import {getBookFromOracleByTitle} from "../core/functions/getBookFromOracleByTitle.ts"
+import { insertReadingPlan } from "../core/functions/insertReadingPlan.ts";
+import {getReadingPlanWithBookInfoByTitle} from "../core/functions/getReadingPlanWithBookInfoByTitle.ts"
 // 🌟 추천도서 관련
-import { handleRecommendBooks, extractReviewText } from "../functions/recommendBook.ts";
+import { handleRecommendBooks, extractReviewText } from "../core/functions/recommendBook.ts";
+//의도 분류
+import { classifyIntent } from "../core/llm/gemini/classifyIntent.ts";
 
 const app = express();
 app.use(cors({ origin: "http://localhost:5173" }));
@@ -71,7 +73,7 @@ app.post("/add-book", async (req, res) => {
 app.post("/add-book", async (req, res) => {
   try {
     const prompt = req.body.prompt;
-    const intent = getIntentFromPrompt(prompt);
+    const intent = await classifyIntent(prompt);
     console.log("🧠 의도 해석:", intent);
 
     if (intent === "recommend") {
@@ -258,14 +260,6 @@ app.post("/recommend-books", async (req, res) => {
     res.status(500).json({ error: "추천 도서 등록 실패", details: err.message });
   }
 });
-
-// 🔍 명령 분류
-function getIntentFromPrompt(prompt: string): "register" | "recommend" | "unknown" {
-  const lowered = prompt.toLowerCase();
-  if (lowered.includes("추천")) return "recommend";
-  if (lowered.includes("등록")) return "register";
-  return "unknown";
-}
 
 // 🚀 서버 시작
 const PORT = process.env.PORT || 3001;

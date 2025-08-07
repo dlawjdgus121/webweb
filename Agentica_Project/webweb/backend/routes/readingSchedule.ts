@@ -1,7 +1,7 @@
 // backend/routes/readingSchedule.ts
 import express from 'express';
 import { Client } from '@notionhq/client';
-import { findBookPageIdByTitle } from '../../notion/notionUtils.ts';
+import { findBookPageIdByTitle } from '../../core/notion/notionUtils.ts';
 import dotenv from 'dotenv';
 dotenv.config();
 
