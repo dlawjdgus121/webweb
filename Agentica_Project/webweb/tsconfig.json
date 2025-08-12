@@ -15,7 +15,7 @@
     "outDir": "dist",
     "rootDir": "./",
 
-    // ✅ 여기에 경로 alias 추가
+    // ✅ 경로 alias
     "baseUrl": ".",
     "paths": {
       "@db/*": ["backend/db/*"],
@@ -29,6 +29,11 @@
     "typeRoots": [
       "./types",
       "./node_modules/@types"
+    ],
+
+    // ✅ typia transform 설정 추가
+    "plugins": [
+      { "transform": "typia/lib/transform" }
     ]
   },
   "include": [

@@ -8,7 +8,7 @@ export interface BookInfo {
   genre?: string;
   cover_url?: string;
   total_pages?: number;
-  created_at?: Date;
+  created_at: Date;
   isbn?: string;
   publish_date?: Date;
   description?: string;

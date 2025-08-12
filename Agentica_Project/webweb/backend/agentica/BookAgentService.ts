@@ -16,24 +16,30 @@ import { parseReadingPlan } from "../../core/llm/gemini/parseReadingPlan.ts";
 import { insertReadingPlan } from "../../core/functions/insertReadingPlan.ts";
 import { getReadingPlanWithBookInfoByTitle } from "../../core/functions/getReadingPlanWithBookInfoByTitle.ts";
 import { handleRecommendBooks, extractReviewText } from "../../core/functions/recommendBook.ts";
-import { updateReadingProgressAndSync } from "../../core/functions/updateReadingProgress.ts";
+//import { updateReadingProgressAndSync } from "../../core/functions/updateReadingProgress.ts";
+
 
 export class BookAgentService {
   // 1) 책 등록
   async addBook(props: { prompt: string }) {
     console.log("📌 [BookAgentService] addBook 호출됨:", props);
 
+    // 1️⃣ 제목 추출
     const title = await askGemini(props.prompt);
+
+    // 2️⃣ 책 검색
     const book = await searchBook(title);
+
+    // 3️⃣ BookInfo 변환
     const bookInfo = convertBookToBookInfo(book);
 
-    await registerBook(bookInfo);
-    const row = await getBookFromOracleByTitle(bookInfo.title);
-    if (!row) throw new Error("Oracle 재조회 실패");
+    // 4️⃣ Oracle + Notion 동시 저장
+    const result = await registerBook(bookInfo);
 
-    const notionPage = await saveBookToNotion(row);
-    return { title: bookInfo.title, notionPage };
+    // 5️⃣ 결과 반환
+    return { title: bookInfo.title, bookId: result.bookId };
   }
+
 
   // 2) 책 속성/감상 업데이트
   async updateBook(props: { userInput: string }) {
@@ -125,11 +131,11 @@ export class BookAgentService {
     console.log("📌 [BookAgentService] recommendBooks 호출됨:", props);
 
     const review = props.review ?? (await extractReviewText(props.prompt ?? ""));
-    await handleRecommendBooks({ userId: "사용자 ID" });
+  await handleRecommendBooks(review); // ✅ string 전달
 
     return { message: "추천 도서 등록 완료!" };
   }
-
+/*
   // 5) 책갈피(진행도) 업데이트
   async updateReadingProgress(props: { bookName: string; page: number }) {
     console.log("📌 [BookAgentService] updateReadingProgress 호출됨:", props);
@@ -141,7 +147,7 @@ export class BookAgentService {
 
     return { message: result.message };
   }
-
+*/
   private f(d: Date | string) {
     return new Date(d).toISOString().split("T")[0];
   }

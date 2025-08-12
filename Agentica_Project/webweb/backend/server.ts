@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 // 📦 환경 변수 로드
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, ".env") });
+dotenv.config();
 
 // 🧠 Agentica 불러오기
 import { createAgent } from "./agentica/agent.ts";

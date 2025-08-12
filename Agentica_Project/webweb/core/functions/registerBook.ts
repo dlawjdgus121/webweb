@@ -67,12 +67,21 @@ interface BookInfo {
   author: string;
   publisher?: string;
   genre?: string;
+ created_at: Date;
+
   coverUrl//: string;
   totalPages?: number;
   isbn?: string;
-  publishDate?: Date;
+  publishDate?;
   description?: string;
 }
+
+export function getTodayLocalDate(): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // 시간 00:00:00으로 고정 (로컬 날짜)
+  return today;
+}
+
 export function convertBookToBookInfo(book: Book): BookInfo {
   const rawPages = book["총 페이지"];
   const parsedPages = rawPages
@@ -86,11 +95,16 @@ export function convertBookToBookInfo(book: Book): BookInfo {
     totalPages: isNaN(parsedPages) ? undefined : parsedPages,
     publisher: book.출판사 || undefined,
     genre: book.장르 || undefined,
+    created_at: getTodayLocalDate(), // ✅ 항상 Date 객체
     isbn: book.isbn || undefined,
-    publishDate: book.출판일 ? new Date(book.출판일) : undefined,
+    publishDate: book.출판일
+      ? new Date(book.출판일) // ✅ 문자열이면 Date 변환
+      : undefined,
     description: book.줄거리 || undefined,
   };
 }
+
+
 // 구글 북스 API로 도서 정보 가져오기 + Cloudinary 썸네일 업로드 + 총 페이지 포함
 export const searchBook = async (prompt: string): Promise<Book> => {
   const title = await askGemini(prompt);

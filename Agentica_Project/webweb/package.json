@@ -9,7 +9,6 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node --loader ts-node/esm backend/server.ts"
   },
   "repository": {
@@ -27,13 +26,14 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.0.15",
+    "@types/node": "^24.2.1",
     "@types/oracledb": "^6.9.0",
     "@types/react": "^19.1.0",
     "jest": "^30.0.4",
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "ts-patch": "^3.3.0",
+    "typescript": "5.3"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -46,6 +46,7 @@
     "express": "^5.1.0",
     "oracledb": "^6.8.0",
     "react": "^19.1.0",
+    "typia": "^9.7.1",
     "uuid": "^11.1.0",
     "zod": "^3.25.74"
   }
