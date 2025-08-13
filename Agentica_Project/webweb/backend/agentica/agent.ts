@@ -23,6 +23,7 @@ export function createAgent() {
         common: () => [
           "너는 독서 도우미다.",
           "사용자의 문맥에서 의도를 파악해 적절한 함수를 선택해 호출해라.",
+           "책 추천을 원하면 recommendBooks 함수를 호출해라.",
           "반드시 타입에 맞는 인자를 채워라.",
         ].join("\n"),
       },

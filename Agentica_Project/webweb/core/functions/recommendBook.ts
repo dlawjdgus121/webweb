@@ -2,68 +2,92 @@ import { getRecommendedBooksByReview } from "../llm/gemini/geminiSummaryTest.ts"
 import { uploadImageToCloud, registerRecommendedBook } from "../notion/notionUtils.ts";
 import { searchBook } from "../functions/registerBook.ts";
 import { Client, PageObjectResponse } from "@notionhq/client";
+import { insertRecommendationToOracle } from "./insertRecommendationToOracle.ts";
+import { getTopReviewAndBookId } from "./getTopReviewAndBookId.ts";
+import { v4 as uuidv4 } from "uuid";
+import oracledb from "oracledb";
 
+export const handleRecommendBooks = async ({ userId }: { userId: string }): Promise<{ titles: string[] }> => {
+  const { review, baseBookId } = await getTopReviewAndBookId();
+  const recommended = await getRecommendedBooksByReview(review);
 
-export const handleRecommendBooks = async (review: string): Promise<string> => {
-  type RecommendedBook = { title: string; imageUrl?: string; description?: string; author: string };
+  // 1. 기존 추천, 책장 목록 조회
+const existingRecommended = await getExistingRecommendedTitles();
+const userLibrary = await getUserLibraryTitles();
+const toRegister = [];
 
-  // 1. 기존 추천 도서 + 책장 도서 제목 모두 가져오기 (중복 제거용)
-  const prevRecommendedTitles = await getExistingRecommendedTitles(); // 삭제 전 가져오기!
-  const shelfTitles = await getUserLibraryTitles(); // 책장 DB
+// 2. 등록 대상 필터링
+for (const entry of recommended) {
+  const title = entry.title?.trim();
+  if (!title) continue; // title이 없으면 skip
 
-  const exclusionList = Array.from(new Set([...prevRecommendedTitles, ...shelfTitles]));
+  const reason =
+    typeof entry.reason === "string"
+      ? entry.reason.trim()
+      : typeof entry.reason === "object" && (entry.reason as any).text
+      ? String((entry.reason as any).text).trim()
+      : JSON.stringify(entry.reason ?? "").trim();
 
-  // 2. Gemini에게 요청 (제외할 제목들 넘김)
-  const recommended: RecommendedBook[] = await getRecommendedBooksByReview();
+  const normalized = normalizeTitle(title);
 
-  // 3. 기존 추천 도서 삭제 (이제 해도 됨!)
-  await deleteAllRecommendedBooks();
+  if (existingRecommended.has(normalized)) continue;
+  if (userLibrary.has(normalized)) continue;
 
-  // 4. 추천 도서 등록
-  const titles: string[] = [];
+  toRegister.push({ title, reason, imageUrl: entry.imageUrl ?? "" });
+}
 
-  for (const entry of recommended) {
-    if (!entry?.title || entry.title === "undefined") continue;
+// 3. ✅ 신규 추천이 있을 때만 삭제
+if (toRegister.length === 0) {
+  console.warn("⚠️ 신규 추천 도서가 없으므로 기존 데이터 삭제 및 등록을 건너뜁니다.");
+  return { titles: [] };
+}
 
-    const title = entry.title.trim();
-    const imageUrlRaw = entry.imageUrl ?? (entry as any).image ?? "";
-    const imageUrl = imageUrlRaw.toString().trim();
-    const description = entry.description?.trim() ?? "";
+await deleteAllRecommendedBooks(); // 이제 여기는 안전하게 실행됨
 
-    let finalImageUrl: string | null = null;
+const savedTitles: string[] = [];
 
-    const isPlaceholder =
-      !imageUrl ||
-      imageUrl.includes("your-folder-name") ||
-      imageUrl.includes("이미지 준비중") ||
-      imageUrl.includes("placeholder");
+// 4. 신규 추천 등록
+for (const entry of toRegister) {
+  const { title, reason } = entry;
+  let imageUrl = entry.imageUrl;
 
-    if (isPlaceholder) {
-      try {
-        const book = await searchBook(title);
-        finalImageUrl = book.책표지 || "";
-      } catch {
-        finalImageUrl = "";
+  if (!imageUrl || imageUrl.includes("placeholder")) {
+    try {
+      const book = await searchBook(title);
+      imageUrl = book.책표지;
+      if (!imageUrl) {
+        console.warn(`📛 썸네일 없음 - 추천에서 제외: ${title}`);
+        continue;
       }
-    } else {
-      try {
-        finalImageUrl = await uploadImageToCloud(imageUrl, title);
-      } catch {
-        finalImageUrl = imageUrl;
-      }
+    } catch {
+      console.warn(`📛 썸네일 에러 - 추천에서 제외: ${title}`);
+      continue;
     }
-
-    await registerRecommendedBook({
-      title,
-      imageUrl: finalImageUrl ?? "",
-    });
-
-    titles.push(`「${title}」`);
   }
 
-  return titles.length > 0
-    ? `📚 다음 도서를 추천했어요: ${titles.join(", ")}`
-    : `📘 추천할 도서를 찾지 못했어요.`;
+  let finalImageUrl = "";
+  try {
+    finalImageUrl = await uploadImageToCloud(imageUrl, title);
+  } catch {
+    finalImageUrl = imageUrl;
+  }
+
+  const recommendedBookId = uuidv4();
+  await insertRecommendationToOracle([
+    {
+      baseBookId,
+      recommendedBookId,
+      recommendedBookTitle: title,
+      recommendedReason: reason,
+      imageUrl: finalImageUrl,
+    },
+  ]);
+
+  savedTitles.push(title);
+}
+
+return { titles: savedTitles };
+
 };
 
 
@@ -76,10 +100,14 @@ export const getIntentFromPrompt = (prompt: string): string => {
 };
 
 // 감상문 텍스트 추출
-export const extractReviewText = (input: string): string => {
-  const match = input.match(/\d+쪽[:：]\s*(.+)/);
-  return match ? match[1] : input;
-};
+export function extractReviewText(prompt: any): string {
+  if (typeof prompt === "string") return prompt;
+  if (typeof prompt === "object") {
+    return prompt.content || prompt.text || JSON.stringify(prompt);
+  }
+  return String(prompt);
+}
+
 
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
@@ -125,10 +153,12 @@ export async function getExistingRecommendedTitles(): Promise<Set<string>> {
 
 
 export async function deleteAllRecommendedBooks(): Promise<void> {
+  // ✅ Notion 클라이언트 설정
   const notion = new Client({ auth: process.env.NOTION_TOKEN });
   const databaseId = process.env.RECOMMENDED_BOOK_DB_ID!;
   const { results } = await notion.databases.query({ database_id: databaseId });
 
+  // 🔹 1. Notion에서 archive
   for (const page of results) {
     if ("id" in page) {
       await notion.pages.update({
@@ -136,6 +166,29 @@ export async function deleteAllRecommendedBooks(): Promise<void> {
         archived: true,
       });
     }
+  }
+  console.log("🧹 Notion 추천도서 아카이브 완료");
+
+  // 🔹 2. Oracle DB에서 삭제
+  let conn;
+  try {
+    oracledb.initOracleClient({ libDir: process.env.ORACLE_CLIENT_PATH });
+
+    conn = await oracledb.getConnection({
+      user: process.env.ORACLE_USER,
+      password: process.env.ORACLE_PW,
+      connectString: process.env.ORACLE_CONNECT,
+      walletLocation: process.env.ORACLE_WALLET_PATH,
+    });
+
+    const deleteSql = `DELETE FROM recommendation`;
+    const result = await conn.execute(deleteSql, [], { autoCommit: true });
+    console.log(`🗑 Oracle 추천도서 삭제 완료 (Rows affected: ${result.rowsAffected})`);
+
+  } catch (err) {
+    console.error("❌ Oracle 추천도서 삭제 실패:", err);
+  } finally {
+    if (conn) await conn.close();
   }
 }
 

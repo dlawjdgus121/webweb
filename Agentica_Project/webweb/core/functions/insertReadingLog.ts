@@ -1,4 +1,12 @@
-import { getConnection } from "../../backend/db/oracle.ts";
+import oracledb from "oracledb";
+import dotenv from "dotenv";
+dotenv.config();
+
+const dbConfig = {
+  user: process.env.ORACLE_USER,
+  password: process.env.ORACLE_PW,
+  connectString: process.env.ORACLE_CONNECT,
+};
 
 export interface ReadingLogInput {
   bookId: string;         // BOOK_INFO 테이블의 book_id
@@ -24,7 +32,7 @@ export async function insertReadingLog({
       throw new Error(`📛 page가 숫자가 아닙니다: ${page}`);
     }
 console.log("과연1");
-    conn = await getConnection();
+    conn = await oracledb.getConnection(dbConfig);
 console.log("과연2");
     // 📚 book_id 유효성 확인
  //   const bookRes = await conn.execute(

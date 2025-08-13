@@ -152,8 +152,8 @@ interface RecommendedBook {
 
 
 //프롬프트 강화 필요 "좋아할만한은 애매함"
-export const getRecommendedBooksByReview = async (): Promise<RecommendedBook[]> => {
-  const review = await getCombinedTop3Reviews(); // ✅ 여기서 감상문 3개 가져옴
+export const getRecommendedBooksByReview = async (reviewText: string): Promise<RecommendedBook[]> => {
+  const review = reviewText; // ✅ 이렇게 수정
   const existingTitles = await getExistingRecommendedTitles();
   const shelfTitles = await getExistingShelfTitles();
   const finalList: RecommendedBook[] = [];
@@ -194,12 +194,11 @@ ${Array.from(shelfTitles).join(", ")}
     "title": "책 제목",
     "author": "책 저자",
     "description": "왜 이 책이 적절한 추천인지에 대한 간단한 설명",
-    "reason": "사용자의 감상문과 어떤 부분이 연결되는지 상세하게 설명"
+    "reason": "사용자의 감상문과 어떤 부분이 연결되는지 간단하게 설명"
   }
 ]
 ※ 예시 금지
 `;
-
     const body = {
       contents: [{ role: "user", parts: [{ text: prompt }] }],
     };

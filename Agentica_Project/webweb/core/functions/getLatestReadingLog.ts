@@ -1,9 +1,17 @@
-import oracledb, { getConnection } from "../../backend/db/oracle.ts";
+import oracledb from "oracledb";
 
+import dotenv from "dotenv";
+dotenv.config();
+
+const dbConfig = {
+  user: process.env.ORACLE_USER,
+  password: process.env.ORACLE_PW,
+  connectString: process.env.ORACLE_CONNECT,
+};
 export async function getLatestReadingLogByBookId(bookId: string) {
   let conn;
   try {
-    conn = await getConnection();
+    conn = await oracledb.getConnection(dbConfig);
 
     const result = await conn.execute(
       `

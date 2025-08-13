@@ -51,12 +51,12 @@ export async function uploadImageToCloud(localPath: string, title: string): Prom
 
   try {
     const result = await cloudinary.uploader.upload(localPath, {
-      folder: "your-folder-name",
-      use_filename: true,
-      unique_filename: false,
-      overwrite: true,
-      secure: true,
-    });
+  folder: "recommended-books",
+  use_filename: true,
+  unique_filename: true, // ✅ 고유 파일명 유지
+  overwrite: false,      // ✅ 기존 이미지 덮어쓰기 방지
+});
+
     return result.secure_url;
   } catch (error) {
     console.error("❌ Cloudinary 업로드 실패:", error);
@@ -309,6 +309,7 @@ export async function createReadingScheduleInNotion(plan: ReadingPlan) {
 
 //도서추천
 
+// registerRecommendedBook 내부에 reason 추가
 export const registerRecommendedBook = async ({
   title,
   imageUrl,
@@ -335,7 +336,6 @@ export const registerRecommendedBook = async ({
   console.log("📸 imageUrl 확인:", imageUrl);
 console.log("📚 title 확인:", title);
 };
-
 // 책 제목으로 책장DB에서 page_id 찾기
 export async function findBookPageIdByTitle(title: string): Promise<string | null> {
   if (!process.env.NOTION_DATABASE_ID) {
@@ -354,7 +354,6 @@ export async function findBookPageIdByTitle(title: string): Promise<string | nul
 
   return response.results[0]?.id ?? null;
 }
-
 export const getExistingShelfTitles = async (): Promise<Set<string>> => {
   const titles = new Set<string>();
 
