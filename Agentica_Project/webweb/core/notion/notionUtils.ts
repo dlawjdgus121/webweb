@@ -251,7 +251,7 @@ export async function createReadingScheduleInNotion(plan: ReadingPlan) {
   const startDateObj = new Date(start_date);
 
   for (let i = 0; i < days; i++) {
-    const currentDate = addDays(start_date, i); // YYYY-MM-DD 형식 날짜
+    const currentDate = addDays(start_date, i+1); // YYYY-MM-DD 형식 날짜
 
     const startPage = i * pagesPerDay + 1;
     let endPage = (i + 1) * pagesPerDay;
@@ -277,7 +277,7 @@ export async function createReadingScheduleInNotion(plan: ReadingPlan) {
       } : {
         rich_text: []
       },
-      "도서 목표일": {
+      "독서 목표일": {
         date: { start: currentDate }   // 여기 currentDate로 변경
       },
       총페이지: {
