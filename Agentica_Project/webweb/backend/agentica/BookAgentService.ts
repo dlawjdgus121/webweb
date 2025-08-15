@@ -1,5 +1,10 @@
 // backend/agentica/BookAgentService.ts
-import { askGemini, extractBookProperties } from "../../core/llm/gemini/geminiSummaryTest.ts";
+import {
+  getBookTitleFromText,
+  extractBookProperties,
+  askAboutBooksFree,
+  getRecommendedBooksByReview
+} from "../../core/llm/openai/bookAnalysis.ts";
 import { searchBook, saveBookToNotion, convertBookToBookInfo } from "../../core/functions/registerBook.ts";
 import { registerBook } from "../../core/functions/registerBookOracle.ts";
 import { getBookFromOracleByTitle } from "../../core/functions/getBookFromOracleByTitle.ts";
@@ -12,7 +17,7 @@ import {
   createReadingScheduleInNotion,
   findBookPageIdByTitle
 } from "../../core/notion/notionUtils.ts";
-import { parseReadingPlan } from "../../core/llm/gemini/parseReadingPlan.ts";
+import { generateReadingPlan } from "../../core/llm/openai/readingPlanGenerator.ts";
 import { insertReadingPlan } from "../../core/functions/insertReadingPlan.ts";
 import { getReadingPlanWithBookInfoByTitle } from "../../core/functions/getReadingPlanWithBookInfoByTitle.ts";
 import { handleRecommendBooks, extractReviewText } from "../../core/functions/recommendBook.ts";
@@ -23,7 +28,13 @@ export class BookAgentService {
   async addBook(props: { prompt: string }) {
     console.log("📌 [BookAgentService] addBook 호출됨:", props);
 
-    const title = await askGemini(props.prompt);
+    const titleData = await getBookTitleFromText(props.prompt);
+    const title = titleData?.main_title || "";
+
+    if (!title) {
+            throw new Error("요청에서 책 제목을 찾을 수 없습니다.");
+        }
+
     const book = await searchBook(title);
     const bookInfo = convertBookToBookInfo(book);
 
@@ -39,7 +50,8 @@ export class BookAgentService {
   async updateBook(props: { userInput: string }) {
     console.log("📌 [BookAgentService] updateBook 호출됨:", props);
 
-    const bookName = await askGemini(props.userInput);
+    const titleData = await getBookTitleFromText(props.userInput);
+    const bookName = titleData?.main_title || "";
     const updates = await extractBookProperties(props.userInput);
 
     const oracleBook = await getBookFromOracleByTitle(bookName);
@@ -81,12 +93,14 @@ export class BookAgentService {
   async createReadingPlan(props: { message: string }) {
     console.log("📌 [BookAgentService] createReadingPlan 호출됨:", props);
 
-    const { title, days } = await parseReadingPlan(props.message);
+    const planData = await generateReadingPlan(props.message);
+    const title = planData?.title || "";
+    const daysArray = planData?.days || [];
     const book = await getBookFromOracleByTitle(title);
     if (!book) throw new Error(`Oracle에 "${title}" 없음`);
 
     const start = new Date();
-    const end = new Date(start.getTime() + (days - 1) * 86400000);
+    const end = new Date(start.getTime() + (daysArray.length - 1) * 86400000);
     const isoStart = this.f(start);
     const isoEnd = this.f(end);
 
@@ -125,6 +139,7 @@ export class BookAgentService {
     console.log("📌 [BookAgentService] recommendBooks 호출됨:", props);
 
     const review = props.review ?? (await extractReviewText(props.prompt ?? ""));
+    await getRecommendedBooksByReview(review); // OpenAI 기반 추천 호출
     await handleRecommendBooks({ userId: "사용자 ID" });
 
     return { message: "추천 도서 등록 완료!" };
