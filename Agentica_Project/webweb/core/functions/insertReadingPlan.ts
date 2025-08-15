@@ -13,6 +13,17 @@ export async function insertReadingPlan({
 }) {
   let conn;
   try {
+    // 1. 날짜 형식 검증
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+      throw new Error(`📛 잘못된 날짜 형식: startDate=${startDate}, endDate=${endDate}`);
+    }
+
+    // 2. 날짜 순서 검증
+    if (new Date(startDate) > new Date(endDate)) {
+      throw new Error(`📛 시작일이 종료일보다 늦습니다: ${startDate} > ${endDate}`);
+    }
+
     conn = await getConnection();
 
     const result = await conn.execute(
@@ -21,7 +32,7 @@ export async function insertReadingPlan({
       VALUES (:book_id, TO_DATE(:start_date, 'YYYY-MM-DD'), TO_DATE(:end_date, 'YYYY-MM-DD'), :interval_days)
       `,
       {
-        book_id: bookId,
+        book_id: String(bookId),
         start_date: startDate,
         end_date: endDate,
         interval_days: intervalDays
@@ -29,7 +40,7 @@ export async function insertReadingPlan({
       { autoCommit: true }
     );
 
-    console.log("✅ Oracle에 독서 계획 저장 완료");
+    console.log("✅ Oracle에 독서 계획 저장 완료:", { bookId, startDate, endDate, intervalDays });
     return result;
   } catch (err) {
     console.error("❌ Oracle에 독서 계획 저장 실패:", err);

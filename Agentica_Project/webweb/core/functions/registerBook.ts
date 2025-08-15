@@ -3,7 +3,7 @@ import axios from "axios";
 import { Client } from "@notionhq/client";
 import FormData from "form-data";
 import { getTodayISODate } from "../notion/notionUtils.ts";
-import {askGemini} from "../llm/gemini/geminiSummaryTest.ts";
+import { getBookTitleFromText } from "../llm/openai/bookAnalysis.ts"; // ✅ OpenAI 버전
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const databaseId = process.env.NOTION_DATABASE_ID || "";
@@ -42,8 +42,6 @@ async function uploadImageUrlToCloudinary(imageUrl: string): Promise<string> {
   return secureUrl;
 }
 
-
-
 export interface Book {
   이름: string;
   저자: string;
@@ -62,17 +60,17 @@ export interface Book {
 }
 
 interface BookInfo {
- // bookId: string;
   title: string;
   author: string;
   publisher?: string;
   genre?: string;
-  coverUrl//: string;
+  coverUrl: string;
   totalPages?: number;
   isbn?: string;
   publishDate?: Date;
   description?: string;
 }
+
 export function convertBookToBookInfo(book: Book): BookInfo {
   const rawPages = book["총 페이지"];
   const parsedPages = rawPages
@@ -91,9 +89,9 @@ export function convertBookToBookInfo(book: Book): BookInfo {
     description: book.줄거리 || undefined,
   };
 }
-// 구글 북스 API로 도서 정보 가져오기 + Cloudinary 썸네일 업로드 + 총 페이지 포함
-export const searchBook = async (prompt: string): Promise<Book> => {
-  const title = await askGemini(prompt);
+
+// 📌 구글 북스 API로 도서 정보 가져오기 + Cloudinary 썸네일 업로드 + 총 페이지 포함
+export const searchBook = async (title: string): Promise<Book> => {
   if (!title) throw new Error("AI가 책 제목을 추출하지 못했습니다.");
 
   const gRes = await axios.get("https://www.googleapis.com/books/v1/volumes", {
@@ -143,7 +141,7 @@ export const searchBook = async (prompt: string): Promise<Book> => {
   };
 };
 
-// Notion에 도서 정보 저장
+// 📌 Notion에 도서 정보 저장
 export const saveBookToNotion = async (book: Book) => {
   try {
     const properties: Record<string, any> = {
@@ -214,7 +212,6 @@ export const saveBookToNotion = async (book: Book) => {
   }
 };
 
-
 export async function fetchBookCover(title: string, author: string): Promise<string> {
   const query = encodeURIComponent(`${title} ${author}`);
   const url = `https://www.googleapis.com/books/v1/volumes?q=${query}`;
@@ -236,11 +233,9 @@ export async function fetchBookCover(title: string, author: string): Promise<str
       if (imageLink) return imageLink.replace("http://", "https://");
     }
 
-    // 📛 이걸 꼭 넣어야 함!
     throw new Error("📛 썸네일 없음");
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Google Books API 실패:", error.message);
     throw error;
   }
 }
-
