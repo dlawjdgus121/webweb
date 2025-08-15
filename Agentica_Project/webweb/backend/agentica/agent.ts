@@ -2,6 +2,7 @@ import { Agentica } from "@agentica/core";
 import OpenAI from "openai";
 import { BookAgentService } from "./BookAgentService.ts";
 import { SmalltalkService } from "./SmalltalkService.ts";
+import { validate } from "typia";
 
 function bookApplication(): any {
   return {
@@ -121,6 +122,16 @@ function smalltalkApplication(): any {
           }
           return true;
         }
+      },
+      // ⭐ '도움말' 전용 함수 추가
+      {
+        name: "getHelp",
+        description: "챗봇 사용법과 기능에 대한 도움말을 제공합니다.",
+        parameters: {
+          type: "object",
+          properties: {}
+        },
+        validate: () => true
       }
     ]
   };
@@ -151,10 +162,24 @@ export function createAgent() {
     config: {
       systemPrompt: {
         common: () => [
-          "너는 'Agentica' 시스템에서 동작하는 독서 도우미이자 대화 상대야. 나는 너의 주 사용 언어를 한글로 지정해두었어.",
-            "사용자의 요청을 듣고, 우선적으로 **'smalltalk'** 컨트롤러를 사용해 자연스러운 대화를 시도해줘.",
-            "사용자가 책과 관련된 **구체적인 요청**(새 책 등록, 책 정보/감상 업데이트, 독서 계획 생성, 책 추천, 독서 진행도 업데이트 등)을 할 때만 **'book'** 컨트롤러의 함수를 호출해.",
-            "만약 사용자의 요청이 구체적인 책 관련 작업이 아니라, 책에 대한 일반적인 이야기, 안부, 잡담 등이라면 절대로 book 컨트롤러 함수를 호출하지 않도록 주의해줘.",
+          "너는 'Agentica' 시스템에서 동작하는 독서 도우미이자 대화 상대야.",
+            "사용자의 발화가 책 관련 '작업 요청'이 아니라면, 무조건 smalltalk 컨트롤러의 `chat` 함수를 호출해.",
+            "",
+            "책 관련 '작업 요청'이란 다음과 같은 명확한 행동을 의미해:",
+            "- 새 책 등록 (`addBook`)",
+            "- 책 정보/감상 업데이트 (`updateBook`)",
+            "- 독서 계획 생성 (`createReadingPlan`)",
+            "- 책 추천 요청 (`recommendBooks`)",
+            "- 독서 진행도 업데이트 (`updateReadingProgress`)",
+            "",
+            "이러한 명확한 작업 요청이 아닌 경우에는, 사용자의 발화에 '책'이라는 단어가 포함되어 있더라도 book 컨트롤러를 호출해서는 안 돼.",
+            "만약 사용자가 '도움말'을 요청하면, **반드시 smalltalk.getHelp 함수를 호출해야 해.**",
+            "",
+            "예시:",
+            "사용자: 안녕 -> smalltalk.chat('안녕')",
+            "사용자: 요즘 읽은 책 있어? -> smalltalk.chat('요즘 읽은 책 있어?')",
+            "사용자: '데미안' 책 좀 등록해줘 -> book.addBook({ prompt: '데미안 책 좀 등록해줘' })",
+            "",
             "[응답 모드 규칙]",
             "1) 함수 호출이 명확하면 JSON만 반환 (설명 금지)",
             "2) 일반 대화는 자연어로 정중하게 응답"
