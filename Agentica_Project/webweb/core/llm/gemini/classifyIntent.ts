@@ -13,7 +13,7 @@ export async function classifyIntent(prompt: string): Promise<
 - register: 책 등록
 - recommend: 책 추천
 - plan: 독서 일정 생성
-- update: 진도 기록/업데이트
+- update: 진도 기록/업데이트/책갈피
 - smalltalk: 인사, 잡담
 - unknown: 해당 없음
 

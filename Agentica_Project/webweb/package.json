@@ -9,7 +9,7 @@
     "test": "tests"
   },
   "scripts": {
-    "dev": "node --loader ts-node/esm backend/server.ts"
+    "dev": "cross-env TS_NODE_PROJECT=tsconfig.json node --loader ts-node/esm backend/server.ts"
   },
   "repository": {
     "type": "git",
@@ -29,13 +29,17 @@
     "@types/node": "^24.2.1",
     "@types/oracledb": "^6.9.0",
     "@types/react": "^19.1.0",
+    "cross-env": "^10.0.0",
     "jest": "^30.0.4",
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "ts-patch": "^3.3.0",
-    "typescript": "5.3"
+    "tsx": "^4.20.4",
+    "typescript": "5.3",
+    "typia": "^9.7.1"
   },
   "dependencies": {
+    "@agentica/core": "^0.31.1",
     "@google/generative-ai": "^0.24.1",
     "@notionhq/client": "^4.0.1",
     "agentica": "^0.29.5",
@@ -46,7 +50,6 @@
     "express": "^5.1.0",
     "oracledb": "^6.8.0",
     "react": "^19.1.0",
-    "typia": "^9.7.1",
     "uuid": "^11.1.0",
     "zod": "^3.25.74"
   }
