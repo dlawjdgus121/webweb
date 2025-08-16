@@ -9,6 +9,7 @@ const databaseId = process.env.NOTION_DATABASE_ID!;
 const reviewDbId = process.env.NOTION_READDATABASE_ID!;
 const RECOMMENDED_DB_ID = process.env.RECOMMENDED_BOOK_DB_ID!;
 
+
 export function getDatabaseId() {
   const id = process.env.NOTION_DATABASE_ID;
   if (!id) throw new Error("❌ NOTION_DATABASE_ID가 정의되어 있지 않습니다.");
@@ -132,6 +133,9 @@ export const saveBookToNotion = async (book: Book) => {
 
 // ✅ 감상문 페이지 생성 함수
 export async function createReviewPage(bookPageId: string, reviewText: string, readPageNumber?: number) {
+
+ const cleanReviewText = reviewText.replace(/^\d+\s*(쪽|페이지)[:：]?\s*/, "").trim();
+
   const properties: Record<string, any> = {
     기록: {
       title: [{ text: { content: reviewText.slice(0, 100) } }],
@@ -451,3 +455,4 @@ export const getCombinedTop3Reviews = async (): Promise<string> => {
 
   return top3.join("\n\n");
 };
+

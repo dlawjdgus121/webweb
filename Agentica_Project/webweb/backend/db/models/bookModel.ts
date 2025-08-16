@@ -1,4 +1,4 @@
-import { getConnection } from "../oracle.ts";
+import { getConnection } from "../oracle";
 
 export interface BookInfo {
   book_id_num: string;

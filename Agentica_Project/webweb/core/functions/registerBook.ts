@@ -108,8 +108,18 @@ export function convertBookToBookInfo(book: Book): BookInfo {
 
 // 구글 북스 API로 도서 정보 가져오기 + Cloudinary 썸네일 업로드 + 총 페이지 포함
 export const searchBook = async (prompt: string): Promise<Book> => {
-  const title = await askGemini(prompt);
-  if (!title) throw new Error("AI가 책 제목을 추출하지 못했습니다.");
+// Gemini 호출하여 책 제목 추출
+const title = await askGemini(prompt);
+
+// AI 응답이 없거나 비정상일 때 상세 로그 남기기
+if (!title) {
+  console.error("❌ AI가 책 제목을 추출하지 못했습니다.");
+  console.error("   📌 prompt:", prompt);
+  throw new Error("AI가 책 제목을 추출하지 못했습니다.");
+}
+
+// 추출된 제목 로그
+console.log("📚 Gemini 추출 제목:", title);
 
   const gRes = await axios.get("https://www.googleapis.com/books/v1/volumes", {
     params: {
@@ -251,11 +261,11 @@ export async function fetchBookCover(title: string, author: string): Promise<str
       if (imageLink) return imageLink.replace("http://", "https://");
     }
 
-    // 📛 이걸 꼭 넣어야 함!
-    throw new Error("📛 썸네일 없음");
-  } catch (error) {
+    // ❌ 원래: throw new Error("📛 썸네일 없음");
+    console.warn(`📛 썸네일 없음 (title="${title}", author="${author}")`); // ✅ 수정됨
+    return null; // ✅ 수정됨: 에러 대신 null 반환
+  } catch (error: any) {
     console.error("❌ Google Books API 실패:", error.message);
-    throw error;
+    return null; // ✅ 수정됨: 에러 발생해도 null 반환
   }
 }
-

@@ -4,11 +4,16 @@ import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import { classifyIntent } from "../core/llm/gemini/classifyIntent.ts";
+
 
 // 📦 환경 변수 로드
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, "./.env") });
+
+// 환경변수 로드 확인
+console.log("🔑 GEMINI_API_KEY:", process.env.GEMINI_API_KEY);
 
 // 🧠 Agentica 불러오기
 import { createAgent } from "./agentica/agent.ts";
@@ -45,6 +50,35 @@ async function runAgent(prompt: string) {
   console.log("\n=======================");
   console.log("🧠 Agentica 호출 시작");
   console.log("📥 사용자 입력:", prompt);
+
+  
+
+  // 사용자 의도 분석
+  const intent = await classifyIntent(prompt);
+  console.log("🔎 분류된 intent:", intent);
+
+  // intent → Agentica prompt 매핑
+  switch (intent) {
+    case "register":
+      prompt = `registerBook: ${prompt}`;
+      break;
+    case "recommend":
+      prompt = `recommendBooks: ${prompt}`;
+      break;
+    case "plan":
+      prompt = `createReadingPlan: ${prompt}`;
+      break;
+    case "update":
+      prompt = `updateProgress: ${prompt}`;
+      break;
+    case "smalltalk":
+      prompt = `smalltalk: ${prompt}`;
+      break;
+    case "unknown":
+    default:
+      console.warn("⚠️ intent가 unknown → Agentica 실행하지 않음");
+      return { message: "❓ 잘 이해하지 못했어요. 다시 말씀해 주세요." };
+  }
 
   const prompts = await agent.conversate(prompt);
   const result = pickResult(prompts);

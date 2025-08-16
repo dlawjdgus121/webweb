@@ -41,15 +41,51 @@ export class BookAgentService {
     return { title: bookInfo.title, bookId: result.bookId };
   }
 
+    // registerBook 별칭 메서드 추가 (systemPrompt와 호환)
+    async registerBook(props: { prompt: string }) {
+    return this.addBook(props);
+    }
+
 
   // 2) 책 속성/감상 업데이트
 async updateBook(props: { userInput: string }) {
   console.log("📌 [BookAgentService] updateBook 호출됨:", props);
 
+    /** === 1. 입력 방어 처리 === **/
+  let cleanInput = props.userInput
+    .replace(/[^\p{L}\p{N}\p{P}\p{Z}]/gu, "") // 특수문자/제어문자 제거
+    .trim();
+
+  // 길이 제한 (예: 3000자)
+  const MAX_LEN = 3000;
+  if (cleanInput.length > MAX_LEN) {
+    cleanInput = cleanInput.slice(0, MAX_LEN) + "...(생략)";
+  }
+
+  /** Gemini 호출 재시도 래퍼 **/
+  const callWithRetry = async <T>(fn: () => Promise<T>, retries = 2): Promise<T> => {
+    let lastError: any;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`🚀 Gemini 호출 시도 ${attempt}/${retries}`);
+        return await fn();
+      } catch (err: any) {
+        lastError = err;
+        console.error(`❌ Gemini 호출 실패 (시도 ${attempt})`, err.message);
+        await new Promise(res => setTimeout(res, attempt * 2000)); // 백오프
+      }
+    }
+    throw new Error(`Gemini 호출 실패: ${lastError?.message || "알 수 없는 오류"}`);
+  };
+
   // 1. 책 제목, 속성 추출
-  const bookName = await askGemini(props.userInput);
-  const updates = await extractBookProperties(props.userInput);
-  console.log("🧪 추출된 속성:", updates);
+    const bookName = await callWithRetry(() => askGemini(cleanInput));
+    if (!bookName) {
+      throw new Error("Gemini API 호출 실패: 책 제목을 추출하지 못했습니다.");
+    }
+
+    const updates = await callWithRetry(() => extractBookProperties(cleanInput));
+    console.log("🧪 추출된 속성:", updates);
 
   // 2. Oracle에서 책 정보 확인
   const oracleBook = await getBookFromOracleByTitle(bookName);
@@ -67,6 +103,9 @@ async updateBook(props: { userInput: string }) {
     if (page === undefined || isNaN(page)) {
       throw new Error("📛 유효한 페이지 번호를 추출할 수 없습니다.");
     }
+
+    // 쪽수 제거 버전 감상문 생성
+    const cleanContent = content.replace(/^\d+\s*(쪽|페이지)[:：]?\s*/, "").trim();
 
     // 3-1. 감상 로그 저장 (Oracle)
     await insertReadingLog({
@@ -97,8 +136,9 @@ async updateBook(props: { userInput: string }) {
     // 3-5. 감상 페이지 생성 (Notion)
     const reviewPageId = await createReviewPage(
       notionPageId,
-      latestLog.content,
-      latestLog.page
+      cleanContent,
+      page
+      
     );
 
     // 3-6. 속성 재구성
@@ -214,7 +254,6 @@ private calculateDays(start: Date | string, end: Date | string): number {
 
 
   // 4) 추천 도서
-  // 4) 추천 도서
 async recommendBooks(props: { userId: string }) {
   console.log("📌 [BookAgentService] recommendBooks 호출됨:", props);
 
@@ -225,6 +264,10 @@ async recommendBooks(props: { userId: string }) {
 
   // 🔁 리딩로그(등) 기반 추천 생성
   const { titles } = await handleRecommendBooks({ userId });
+
+  if (titles.length === 0) {
+    console.warn("⚠️ 추천된 책이 없음. 빈 배열 반환."); // 수정됨
+  }
 
   // ✅ 라우터와 동일 형태로 응답
   return {
@@ -241,4 +284,6 @@ private days(a: Date | string, b: Date | string) {
   const s = new Date(a), e = new Date(b);
   return Math.ceil((e.getTime() - s.getTime()) / 86400000) + 1;
 }
+
 }
+  

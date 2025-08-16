@@ -1,14 +1,19 @@
+// llm/gemini/geminiSummaryTest.ts
 import axios from "axios";
 import { uploadImageToCloud,getExistingShelfTitles,getCombinedTop3Reviews  } from "../../notion/notionUtils.ts";
 import { fetchBookCover } from "../../functions/registerBook.ts";
 import {getExistingRecommendedTitles, normalizeTitle} from "../../functions/recommendBook.ts"
 import { response } from "express";
 import "../../utils/env.ts";
+import { retryWithBackoff } from "../../utils/retry.ts";
 
 
 
 export const askGemini = async (input: string): Promise<string> => {
   const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+  throw new Error("❌ GEMINI_API_KEY 환경변수가 설정되지 않았습니다.");
+}
   const model = "models/gemini-2.5-pro";
   const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
 
@@ -30,7 +35,9 @@ export const askGemini = async (input: string): Promise<string> => {
   };
 
   try {
-    const res = await axios.post(url, body, { headers });
+      const res = await retryWithBackoff(() =>
+      axios.post(url, body, { headers })
+    );
     const output = res.data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
     if (
@@ -51,6 +58,33 @@ export const askGemini = async (input: string): Promise<string> => {
 };
 
 export const extractBookProperties = async (input: string): Promise<Record<string, any>> => {
+
+  /** 입력 방어 처리 **/
+  let cleanInput = input
+    .replace(/[^\p{L}\p{N}\p{P}\p{Z}]/gu, "") // 특수문자 제거
+    .trim();
+
+  const MAX_LEN = 5000;
+  if (cleanInput.length > MAX_LEN) {
+    cleanInput = cleanInput.slice(0, MAX_LEN) + "...(생략)";
+  }
+
+  /** Gemini 호출 재시도 래퍼 **/
+  const callWithRetry = async <T>(fn: () => Promise<T>, retries = 2): Promise<T> => {
+    let lastError: any;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`🚀 Gemini 속성 추출 시도 ${attempt}/${retries}`);
+        return await fn();
+      } catch (err: any) {
+        lastError = err;
+        console.error(`❌ Gemini 속성 추출 실패 (시도 ${attempt})`, err.message);
+        await new Promise(res => setTimeout(res, attempt * 2000)); // 백오프
+      }
+    }
+    throw new Error(`Gemini 속성 추출 실패: ${lastError?.message || "알 수 없는 오류"}`);
+  };
+
   const apiKey = process.env.GEMINI_API_KEY;
   const model = "models/gemini-2.5-pro";
   const url = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
@@ -153,7 +187,14 @@ interface RecommendedBook {
 
 //프롬프트 강화 필요 "좋아할만한은 애매함"
 export const getRecommendedBooksByReview = async (reviewText: string): Promise<RecommendedBook[]> => {
-  const review = reviewText; // ✅ 이렇게 수정
+
+   /** 입력 프롬프트 최적화 (길이 제한 5000자) **/
+  const MAX_REVIEW_LEN = 5000;
+  const review =
+  reviewText.length > MAX_REVIEW_LEN
+  ? reviewText.slice(0, MAX_REVIEW_LEN) + "...(생략)"
+  : reviewText;
+
   const existingTitles = await getExistingRecommendedTitles();
   const shelfTitles = await getExistingShelfTitles();
   const finalList: RecommendedBook[] = [];
@@ -204,7 +245,10 @@ ${Array.from(shelfTitles).join(", ")}
     };
 
     try {
-      const res = await axios.post(url, body, { headers });
+      // Gemini 호출도 retryWithBackoff 적용
+      const res = await retryWithBackoff(() =>
+       axios.post(url, body, { headers })
+       );
       const output = res.data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
       const jsonStr = output.slice(output.indexOf("["), output.lastIndexOf("]") + 1);
       const rawList: any[] = JSON.parse(jsonStr);
@@ -232,8 +276,13 @@ ${Array.from(shelfTitles).join(", ")}
         alreadySeenTitles.add(normalizedTitle);
 
         try {
-          const thumbnail = await fetchBookCover(title, author);
-          if (!thumbnail) continue;
+           const thumbnail = await retryWithBackoff(() =>
+           fetchBookCover(title, author)
+        );
+          if (!thumbnail) {
+            console.warn(`📛 썸네일 없음 - 스킵: ${title}`); // ✅ 수정됨
+            continue; // 썸네일 없는 책은 스킵
+          }
 
           const uploadedUrl = await uploadImageToCloud(thumbnail, title);
           const reason = item.reason?.trim() ?? "추천 이유가 제공되지 않았습니다.";
@@ -243,6 +292,7 @@ ${Array.from(shelfTitles).join(", ")}
           if (finalList.length === 3) break;
         } catch (err) {
           console.warn("⚠️ 썸네일 처리 중 오류:", err);
+          continue; // 에러 발생해도 다른 책 진행
         }
       }
     } catch (err) {

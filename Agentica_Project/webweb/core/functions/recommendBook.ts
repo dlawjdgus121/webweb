@@ -1,3 +1,5 @@
+// core/functions/recommendBook.ts
+
 import { getRecommendedBooksByReview } from "../llm/gemini/geminiSummaryTest.ts";
 import { uploadImageToCloud, registerRecommendedBook } from "../notion/notionUtils.ts";
 import { searchBook } from "../functions/registerBook.ts";
@@ -9,7 +11,9 @@ import oracledb from "oracledb";
 
 export const handleRecommendBooks = async ({ userId }: { userId: string }): Promise<{ titles: string[] }> => {
   const { review, baseBookId } = await getTopReviewAndBookId();
-  const recommended = await getRecommendedBooksByReview(review);
+
+  const recommendedRaw = await getRecommendedBooksByReview(review);
+  const recommended = recommendedRaw.slice(0, 3);
 
   // 1. 기존 추천, 책장 목록 조회
 const existingRecommended = await getExistingRecommendedTitles();
@@ -33,7 +37,16 @@ for (const entry of recommended) {
   if (existingRecommended.has(normalized)) continue;
   if (userLibrary.has(normalized)) continue;
 
+    // imageUrl 체크 강화
+    if (!entry.imageUrl || entry.imageUrl.includes("placeholder")) {
+      console.warn(`📛 유효한 이미지 없음 - 스킵: ${title}`);
+      continue;
+    }
+
   toRegister.push({ title, reason, imageUrl: entry.imageUrl ?? "" });
+
+   await new Promise((res) => setTimeout(res, 5000));
+
 }
 
 // 3. ✅ 신규 추천이 있을 때만 삭제
