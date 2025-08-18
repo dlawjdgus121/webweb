@@ -13,7 +13,9 @@ import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-
+console.log("[dbg] cwd=", process.cwd());
+console.log("[dbg] TNS_ADMIN=", process.env.TNS_ADMIN);
+console.log("[dbg] ORACLE_CLIENT_PATH=", process.env.ORACLE_CLIENT_PATH);
 // 📦 환경 변수 로드
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

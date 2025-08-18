@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
+import "./App.css";
 
 interface Message {
   id: number;
@@ -7,8 +8,12 @@ interface Message {
   content: string;
 }
 
+// 임시 Notion 링크
+const TEMP_NOTION_URL = "https://glory-impala-26f.notion.site/2397e4fff35f8097bfdbd02dbbc40996?source=copy_link"; 
+
 export default function App() {
-  const [messages, setMessages] = useState<Message[]>([// 초기 환영 메시지 추가
+  // 초기 환영 메시지
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
       role: "bot",
@@ -18,6 +23,27 @@ export default function App() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // UI 상태
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [notionUrl] = useState<string | null>(TEMP_NOTION_URL || null); // 코드 내 임시 지정만 사용
+ // const [notionUrl, setNotionUrl] = useState<string | null>(null);
+
+  // 채팅 영역 스크롤 컨테이너
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 메시지/로딩 변경 시 자동으로 맨 아래로 스크롤
+  useEffect(() => {
+    containerRef.current?.scrollTo({
+      top: containerRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, loading]);
+
+  const canSend = useMemo(
+    () => input.trim().length > 0 && !loading,
+    [input, loading]
+  );
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -87,90 +113,110 @@ export default function App() {
   };
 
   return (
-    <div
-      style={{
-        maxWidth: 600,
-        margin: "2rem auto",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      <h1>Notion Book Logger with Gemini</h1>
+    <div className={`app-shell ${theme === "dark" ? "theme-dark" : "theme-light"}`}>
+      {/* 상단 바 */}
+      <header className="topbar">
+        <div className="brand">ChatBook</div>
 
-      {/* 메시지 표시 영역 */}
-      <div
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 8,
-          padding: "1rem",
-          height: 400,
-          overflowY: "auto",
-          backgroundColor: "#f9f9f9",
-        }}
-      >
-        {messages.map(({ id, role, content }) => (
-          <div
-            key={id}
-            style={{
-              textAlign: role === "user" ? "right" : "left",
-              margin: "0.5rem 0",
+        <div className="theme-switch">
+          <span id="themeLabel" className="visually-hidden">
+            Theme
+          </span>
+          <button
+            className={`theme-btn ${theme === "light" ? "active" : ""}`}
+            aria-labelledby="themeLabel"
+            onClick={() => setTheme("light")}
+            type="button"
+          >
+            Light
+          </button>
+          <button
+            className={`theme-btn ${theme === "dark" ? "active" : ""}`}
+            aria-labelledby="themeLabel"
+            onClick={() => setTheme("dark")}
+            type="button"
+          >
+            Dark
+          </button>
+
+          {/* Notion: 임시 링크가 없으면 비활성화 */}
+          <a
+            className={`theme-btn notion-btn ${!notionUrl ? "is-disabled" : ""}`}
+            href={notionUrl ?? "#"}
+            target="_blank"
+            rel="noreferrer"
+            tabIndex={notionUrl ? 0 : -1}
+            onClick={(e) => {
+              if (!notionUrl) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
             }}
           >
-            <div
-              style={{
-                display: "inline-block",
-                padding: "0.5rem 1rem",
-                borderRadius: 20,
-                backgroundColor: role === "user" ? "#007bff" : "#e1e1e1",
-                color: role === "user" ? "white" : "black",
-                whiteSpace: "pre-wrap",
-                maxWidth: "80%",
-              }}
-            >
-              {content}
-            </div>
-          </div>
-        ))}
-        {loading && (
-          <div style={{ fontStyle: "italic", color: "#666", marginTop: 10 }}>
-            작성 중...
-          </div>
-        )}
-      </div>
+            Notion
+          </a>
+        </div>
+      </header>
 
-      {/* 입력창 + 전송 버튼 */}
-      <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
-        <input
-          type="text"
-          placeholder="예: 데미안 등록해줘"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          style={{
-            flexGrow: 1,
-            padding: "0.75rem",
-            fontSize: "1rem",
-            borderRadius: 6,
-            border: "1px solid #ccc",
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !loading) sendMessage();
-          }}
-          disabled={loading}
-        />
-        <button
-          onClick={sendMessage}
-          disabled={loading}
-          style={{
-            padding: "0.75rem 1.5rem",
-            fontSize: "1rem",
-            borderRadius: 6,
-            border: "none",
-            backgroundColor: loading ? "#ccc" : "#007bff",
-            color: "white",
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          전송
-        </button>
+      {/* 카드만 중앙 배치 (사이드바 없음) */}
+      <div className="chat-wrap">
+        <main className="chat-card">
+          <div className="chat-log" ref={containerRef}>
+            {messages.map(({ id, role, content }) => (
+              <div key={id} className={`msg-row ${role === "user" ? "right" : "left"}`}>
+                {role !== "user" && (
+                  <img
+                    src={theme === "light" ? "/bot-avatar-light.png" : "/bot-avatar-dark.png"}
+                    alt="Bot"
+                    className="chat-avatar"
+                  />
+                )}
+                <div className={`msg-bubble ${role}`}>
+                  <pre className="msg-text">{content}</pre>
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="msg-row left">
+                <img
+                  src={theme === "light" ? "/bot-avatar-light.png" : "/bot-avatar-dark.png"}
+                  alt="Bot"
+                  className="chat-avatar"
+                />
+                <div className="msg-bubble bot">
+                  <span className="loading-text">작성 중</span>
+                  <span className="dot-typing" aria-hidden="true"></span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="composer">
+            <label htmlFor="chatInput" className="visually-hidden">
+              메시지 입력
+            </label>
+            <input
+              id="chatInput"
+              className="composer-input"
+              type="text"
+              placeholder='예: "데미안 등록해줘"'
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canSend) sendMessage();
+              }}
+              disabled={loading}
+            />
+            <button
+              className="composer-btn"
+              onClick={sendMessage}
+              disabled={!canSend}
+              type="button"
+            >
+              전송
+            </button>
+          </div>
+        </main>
       </div>
     </div>
   );

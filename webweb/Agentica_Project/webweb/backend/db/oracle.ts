@@ -11,10 +11,8 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 // Instant Client와 Wallet 절대경로 지정
 oracledb.initOracleClient({
   libDir: process.env.ORACLE_CLIENT_PATH!, // Instant Client 경로
-  configDir: path.resolve(
-    __dirname,
-    "../oracle_wallet/Wallet_MyDB" // Wallet 폴더 경로
-  ),
+  
+  configDir: process.env.TNS_ADMIN,
 });
 
 export const oracleConfig = {
