@@ -1,11 +1,15 @@
-// backend/agentica/BookAgentService.ts
 import {
   getBookTitleFromText,
   extractBookProperties,
   askAboutBooksFree,
-  getRecommendedBooksByReview
+  getRecommendedBooksByReview,
 } from "../../core/llm/openai/bookAnalysis.ts";
-import { searchBook, saveBookToNotion, convertBookToBookInfo } from "../../core/functions/registerBook.ts";
+import {
+  Book,
+  searchBook,
+  saveBookToNotion,
+  convertBookToBookInfo,
+} from "../../core/functions/registerBook.ts";
 import { registerBook } from "../../core/functions/registerBookOracle.ts";
 import { getBookFromOracleByTitle } from "../../core/functions/getBookFromOracleByTitle.ts";
 import { insertReadingLog } from "../../core/functions/insertReadingLog.ts";
@@ -15,13 +19,33 @@ import {
   updateBookProperties,
   createReviewPage,
   createReadingScheduleInNotion,
-  findBookPageIdByTitle
+  findBookPageIdByTitle,
 } from "../../core/notion/notionUtils.ts";
 import { generateReadingPlan } from "../../core/llm/openai/readingPlanGenerator.ts";
 import { insertReadingPlan } from "../../core/functions/insertReadingPlan.ts";
 import { getReadingPlanWithBookInfoByTitle } from "../../core/functions/getReadingPlanWithBookInfoByTitle.ts";
-import { handleRecommendBooks, extractReviewText } from "../../core/functions/recommendBook.ts";
+import {
+  handleRecommendBooks,
+  extractReviewText,
+  normalizeTitle,
+} from "../../core/functions/recommendBook.ts";
 import { updateReadingProgressAndSync } from "../../core/functions/updateReadingProgress.ts";
+
+export function convertBookInfoToBook(bookInfo: any): Book {
+  return {
+    이름: bookInfo.title,
+    저자: bookInfo.author,
+    책표지: bookInfo.coverUrl,
+    출판사: bookInfo.publisher,
+    장르: bookInfo.genre,
+    isbn: bookInfo.isbn,
+    줄거리: bookInfo.description,
+    "총 페이지": bookInfo.totalPages,
+    "처음 읽은 날": bookInfo.publishDate
+      ? bookInfo.publishDate.toISOString().split("T")[0]
+      : undefined,
+  };
+}
 
 export class BookAgentService {
   // 1) 책 등록
@@ -32,17 +56,28 @@ export class BookAgentService {
     const title = titleData?.main_title || "";
 
     if (!title) {
-            throw new Error("요청에서 책 제목을 찾을 수 없습니다.");
-        }
+      throw new Error("요청에서 책 제목을 찾을 수 없습니다.");
+    }
 
     const book = await searchBook(title);
     const bookInfo = convertBookToBookInfo(book);
 
-    await registerBook(bookInfo);
-    const row = await getBookFromOracleByTitle(bookInfo.title);
-    if (!row) throw new Error("Oracle 재조회 실패");
+    // 1. 오라클에 책 정보 등록 및 유효성 검사
+    const row = await registerBook(bookInfo);
+    if (!row) {
+      throw new Error("Oracle에 책 등록 실패");
+    }
 
-    const notionPage = await saveBookToNotion(row);
+    // ⭐ 2. Notion에 저장하기 전, 타입 변환
+    const convertedRow = convertBookInfoToBook(row);
+
+    // 3. Notion에 책 정보 저장
+    const notionPage = await saveBookToNotion(convertedRow);
+    if (!notionPage) {
+      throw new Error("Notion에 책 등록 실패");
+    }
+
+    // 4. 모든 작업이 완료된 후 최종 응답 반환
     return { title: bookInfo.title, notionPage };
   }
 
@@ -67,7 +102,7 @@ export class BookAgentService {
         bookId: oracleBook.bookId,
         content,
         page,
-        isFinal: updates["상태"] === "완료" ? 1 : 0
+        isFinal: updates["상태"] === "완료" ? 1 : 0,
       });
     }
 
@@ -95,6 +130,7 @@ export class BookAgentService {
 
     const planData = await generateReadingPlan(props.message);
     const title = planData?.title || "";
+    const normalizedTitle = normalizeTitle(title);
     const daysArray = planData?.days || [];
     const book = await getBookFromOracleByTitle(title);
     if (!book) throw new Error(`Oracle에 "${title}" 없음`);
@@ -108,7 +144,7 @@ export class BookAgentService {
       bookId: book.bookId,
       startDate: isoStart,
       endDate: isoEnd,
-      intervalDays: 1
+      intervalDays: 1,
     });
 
     const plan = await getReadingPlanWithBookInfoByTitle(title);
@@ -124,13 +160,13 @@ export class BookAgentService {
       start_date: this.f(plan.START_DATE),
       end_date: this.f(plan.END_DATE),
       days: this.days(plan.START_DATE, plan.END_DATE),
-      bookPageId
+      bookPageId,
     });
 
     return {
       title: plan.TITLE,
       start: this.f(plan.START_DATE),
-      end: this.f(plan.END_DATE)
+      end: this.f(plan.END_DATE),
     };
   }
 
@@ -151,15 +187,22 @@ export class BookAgentService {
 
     const result = await updateReadingProgressAndSync({
       bookName: props.bookName,
-      page: props.page
+      page: props.page,
     });
 
     return { message: result.message };
   }
 
+  // ⭐ 로컬 날짜를 YYYY-MM-DD 형식으로 포맷하는 함수 (유일한 정의)
   private f(d: Date | string) {
-    return new Date(d).toISOString().split("T")[0];
+    const date = new Date(d);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
+
+  // ⭐ 날짜 차이를 계산하는 함수 (유일한 정의)
   private days(a: Date | string, b: Date | string) {
     const s = new Date(a),
       e = new Date(b);

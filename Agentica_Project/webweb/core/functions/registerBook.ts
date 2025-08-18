@@ -3,7 +3,7 @@ import axios from "axios";
 import { Client } from "@notionhq/client";
 import FormData from "form-data";
 import { getTodayISODate } from "../notion/notionUtils.ts";
-import { getBookTitleFromText } from "../llm/openai/bookAnalysis.ts"; // ✅ OpenAI 버전
+import { getBookTitleFromText } from "../llm/openai/bookAnalysis.ts";
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const databaseId = process.env.NOTION_DATABASE_ID || "";
@@ -91,12 +91,20 @@ export function convertBookToBookInfo(book: Book): BookInfo {
 }
 
 // 📌 구글 북스 API로 도서 정보 가져오기 + Cloudinary 썸네일 업로드 + 총 페이지 포함
-export const searchBook = async (title: string): Promise<Book> => {
+export const searchBook = async (prompt: string): Promise<Book> => {
+  // ⭐ LLM을 통해 책 제목과 저자를 함께 추출
+  const titleData = await getBookTitleFromText(prompt);
+  const title = titleData?.main_title || "";
+  const author = titleData?.author || "";
+
   if (!title) throw new Error("AI가 책 제목을 추출하지 못했습니다.");
+
+  // ⭐ 저자 정보가 있다면 검색 쿼리에 포함
+  const searchQuery = author ? `${title} ${author}` : title;
 
   const gRes = await axios.get("https://www.googleapis.com/books/v1/volumes", {
     params: {
-      q: title,
+      q: searchQuery, // 수정된 검색 쿼리 사용
       key: process.env.GOOGLE_BOOKS_API_KEY,
     },
   });
@@ -133,7 +141,7 @@ export const searchBook = async (title: string): Promise<Book> => {
     책표지: cloudImageUrl,
     출판사: info.publisher || undefined,
     장르: info.categories?.[0] || undefined,
-    isbn: (info.industryIdentifiers?.find(id => id.type.includes("ISBN"))?.identifier) || undefined,
+    isbn: (info.industryIdentifiers?.find((id) => id.type.includes("ISBN"))?.identifier) || undefined,
     출판일: info.publishedDate || undefined,
     줄거리: info.description || undefined,
     "총 페이지": totalPages,

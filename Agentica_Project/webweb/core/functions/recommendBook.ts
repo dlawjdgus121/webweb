@@ -1,4 +1,4 @@
-import { getRecommendedBooksByReview } from "../llm/openai/bookAnalysis.ts"; // ✅ OpenAI 버전
+import { getRecommendedBooksByReview } from "../llm/openai/bookAnalysis.ts";
 import { uploadImageToCloud, registerRecommendedBook } from "../notion/notionUtils.ts";
 import { searchBook } from "../functions/registerBook.ts";
 import { Client, PageObjectResponse } from "@notionhq/client";
@@ -6,6 +6,11 @@ import { insertRecommendationToOracle } from "./insertRecommendationToOracle.ts"
 import { getTopReviewAndBookId } from "./getTopReviewAndBookId.ts";
 import { v4 as uuidv4 } from "uuid";
 import oracledb from "oracledb";
+import dotenv from "dotenv";
+dotenv.config();
+
+const notion = new Client({ auth: process.env.NOTION_TOKEN });
+const RECOMMENDED_DB_ID = process.env.RECOMMENDED_BOOK_DB_ID!;
 
 /**
  * 추천 도서 처리
@@ -16,7 +21,7 @@ export const handleRecommendBooks = async (
   // 1. 가장 상위 감상문과 기준 도서 ID 조회
   const { review, baseBookId } = await getTopReviewAndBookId();
 
-  // 2. OpenAI 기반 추천 도서 가져오기 ✅
+  // 2. OpenAI 기반 추천 도서 가져오기
   const recommended = await getRecommendedBooksByReview(review);
 
   // 3. 기존 추천/사용자 보유 도서 목록 조회
@@ -29,7 +34,23 @@ export const handleRecommendBooks = async (
     const rawTitle = typeof entry === "string" ? entry : entry.title;
     const title = rawTitle.trim();
 
-    // 추천 이유 추출 (OpenAI 버전에서는 reason이 포함될 수도 있고 없을 수도 있음)
+    // 썸네일 보정
+    let imageUrl = entry.imageUrl ?? "";
+    if (!imageUrl || imageUrl.includes("placeholder")) {
+      try {
+        const book = await searchBook(title);
+        imageUrl = book.책표지 || "";
+        if (!imageUrl) {
+          console.warn(`📛 썸네일 없음 - 추천에서 제외: ${title}`);
+          continue;
+        }
+      } catch {
+        console.warn(`📛 썸네일 에러 - 추천에서 제외: ${title}`);
+        continue;
+      }
+    }
+
+    // 추천 이유 추출
     let reason = "";
     if (typeof entry.reason === "string") {
       reason = entry.reason.trim();
@@ -48,39 +69,26 @@ export const handleRecommendBooks = async (
     toRegister.push({
       title,
       reason,
-      imageUrl: entry.imageUrl ?? ""
+      imageUrl: imageUrl
     });
   }
 
-  // 4. 기존 추천 삭제 (Notion + Oracle)
+  // ⭐ 4. 신규 추천이 있을 때만 기존 추천 삭제 (버그 수정)
+  if (toRegister.length === 0) {
+    console.warn("⚠️ 신규 추천 도서가 없으므로 기존 데이터 삭제 및 등록을 건너뜁니다.");
+    return { titles: [] };
+  }
   await deleteAllRecommendedBooks();
 
   const savedTitles: string[] = [];
 
+  // 5. 추천 도서 등록
   for (const entry of toRegister) {
-    const { title, reason } = entry;
-    let imageUrl = entry.imageUrl;
-
-    // 썸네일 보정
-    if (!imageUrl || imageUrl.includes("placeholder")) {
-      try {
-        const book = await searchBook(title);
-        imageUrl = book.책표지;
-        if (!imageUrl) {
-          console.warn(`📛 썸네일 없음 - 추천에서 제외: ${title}`);
-          continue;
-        }
-      } catch {
-        console.warn(`📛 썸네일 에러 - 추천에서 제외: ${title}`);
-        continue;
-      }
-    }
-
     let finalImageUrl = "";
     try {
-      finalImageUrl = await uploadImageToCloud(imageUrl, title);
+      finalImageUrl = await uploadImageToCloud(entry.imageUrl, entry.title);
     } catch {
-      finalImageUrl = imageUrl;
+      finalImageUrl = entry.imageUrl;
     }
 
     const recommendedBookId = uuidv4();
@@ -90,16 +98,16 @@ export const handleRecommendBooks = async (
       {
         baseBookId,
         recommendedBookId,
-        recommendedBookTitle: title,
-        recommendedReason: reason,
-        imageUrl: finalImageUrl
-      }
+        recommendedBookTitle: entry.title,
+        recommendedReason: entry.reason,
+        imageUrl: finalImageUrl,
+      },
     ]);
 
     // 6. Notion 등록
-    await registerRecommendedBook({ title, imageUrl: finalImageUrl });
+    await registerRecommendedBook({ title: entry.title, imageUrl: finalImageUrl });
 
-    savedTitles.push(title);
+    savedTitles.push(entry.title);
   }
 
   return { titles: savedTitles };
@@ -125,9 +133,6 @@ export function extractReviewText(prompt: any): string {
   return String(prompt);
 }
 
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
-const RECOMMENDED_DB_ID = process.env.RECOMMENDED_BOOK_DB_ID!;
-
 /**
  * 제목 표준화
  */
@@ -135,9 +140,9 @@ export function normalizeTitle(raw: string): string {
   return raw
     .trim()
     .toLowerCase()
-    .replace(/\(.*?\)/g, "")    // 괄호 제거
-    .replace(/:.*$/, "")        // 콜론 이후 제거
-    .replace(/\s+/g, " ")       // 중복 공백 제거
+    .replace(/\(.*?\)/g, "")
+    .replace(/:.*$/, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -146,7 +151,7 @@ export function normalizeTitle(raw: string): string {
  */
 export async function getExistingRecommendedTitles(): Promise<Set<string>> {
   const response = await notion.databases.query({
-    database_id: RECOMMENDED_DB_ID
+    database_id: RECOMMENDED_DB_ID,
   });
 
   const titles = new Set<string>();
@@ -179,7 +184,7 @@ export async function deleteAllRecommendedBooks(): Promise<void> {
     if ("id" in page) {
       await notion.pages.update({
         page_id: page.id,
-        archived: true
+        archived: true,
       });
     }
   }
@@ -193,7 +198,7 @@ export async function deleteAllRecommendedBooks(): Promise<void> {
       user: process.env.ORACLE_USER,
       password: process.env.ORACLE_PW,
       connectString: process.env.ORACLE_CONNECT,
-      walletLocation: process.env.ORACLE_WALLET_PATH
+      walletLocation: process.env.ORACLE_WALLET_PATH,
     });
 
     const deleteSql = `DELETE FROM recommendation`;
@@ -210,7 +215,9 @@ export async function deleteAllRecommendedBooks(): Promise<void> {
  * 사용자 서재 제목 조회
  */
 export async function getUserLibraryTitles(): Promise<Set<string>> {
+  const notion = new Client({ auth: process.env.NOTION_TOKEN });
   const databaseId = process.env.NOTION_DATABASE_ID!;
+
   const { results } = await notion.databases.query({ database_id: databaseId });
   const titles = new Set<string>();
 

@@ -1,47 +1,52 @@
 import { askOpenAI, askOpenAIJson } from "../../utils/openaiClient.ts";
 
 /**
- * 📌 책 제목 추출
- * - 모호하거나 불완전한 문장에서도 최대한 제목을 유추
- * - 확실하지 않으면 후보와 신뢰도를 함께 반환
+ * 📌 책 제목 및 저자 추출 (정확도 강화 버전)
+ * - 주어진 텍스트에서 '정확한' 제목과 '정확한' 저자를 추출합니다.
+ * - 어떤 경우에도 추론하거나 불필요한 단어를 추가하지 않습니다.
  */
 export async function getBookTitleFromText(input: string) {
   const prompt = `
-다음 문장에서 책 제목을 추출하세요.
-- 제목은 한글로 정확히 표기합니다.
-- 표기나 맞춤법이 다르면 보정합니다.
-- 확실하지 않으면 유사 후보를 1~3개까지 제시하고 신뢰도를 함께 반환합니다.
-출력 형식:
-{
-  "main_title": "정확한 책 제목",
-  "alternatives": ["후보1", "후보2"],
-  "confidence": 0.0 ~ 1.0
-}
-문장: "${input}"
+    다음 텍스트에서 책의 **정확한 제목**과 **정확한 저자**를 추출해줘.
+    
+    1. 텍스트에 포함된 정보만 사용해야 하며, 추론하거나 보정해서는 안 돼.
+    2. '개미'와 같이 일반적인 단어가 포함되어 있더라도, 다른 작품으로 치환하지 마.
+    3. 저자 이름은 '베르나르 베르베르'처럼 텍스트에 있는 그대로 추출해.
+    4. 띄어쓰기를 포함한 표기 오류는 보정해서 반환해.
+    5. 저자와 제목이 함께 제시되면, 이 두 정보를 연결하여 검색에 사용할 수 있도록 추출해줘.
+    
+    응답은 반드시 아래와 같은 JSON 객체로 반환해줘.
+    
+    입력: "${input}"
+    출력 형식:
+    {
+      "main_title": "책 제목",
+      "author": "저자"
+    }
   `;
   return await askOpenAIJson(prompt);
 }
 
 /**
  * 📌 책 메타데이터 추출
- * - 제목, 저자, 출판사, 출판일, 장르
- * - 누락된 값은 가능한 범위에서 추론
+ * - 텍스트에서 책 정보를 추출합니다.
+ * - 누락된 값은 null로 표시합니다. 추론하지 않습니다.
  */
 export async function extractBookProperties(text: string) {
   const prompt = `
-다음 텍스트에서 책 정보를 추출하세요.
-필수 항목: 제목, 저자, 출판사, 출판일(YYYY-MM-DD), 장르
-누락된 값은 가능한 범위에서 추론하고, 모르면 null로 표시합니다.
-출력 형식:
-{
-  "title": "",
-  "author": "",
-  "publisher": "",
-  "publishedDate": "",
-  "genre": ""
-}
-텍스트:
-${text}
+    다음 텍스트에서 책 정보를 추출하세요.
+    항목: 제목, 저자, 출판사, 출판일(YYYY-MM-DD), 장르
+    누락된 값은 'null'로 표시합니다. 어떤 경우에도 추론하지 마세요.
+    출력 형식:
+    {
+      "title": "",
+      "author": "",
+      "publisher": "",
+      "publishedDate": "",
+      "genre": ""
+    }
+    텍스트:
+    ${text}
   `;
   return await askOpenAIJson(prompt);
 }
@@ -56,17 +61,32 @@ export async function askAboutBooksFree(question: string) {
 
 /**
  * 📌 리뷰 기반 추천 도서 생성
- * - 입력된 리뷰 내용과 비슷한 장르/스타일 책 3권 추천
+ * - 입력된 리뷰의 '핵심 내용'을 기반으로 책 3권을 추천합니다.
+ * - 추천 이유를 간결하게 포함합니다.
  */
 export async function getRecommendedBooksByReview(review: string) {
   const prompt = `
-다음 리뷰를 기반으로 비슷한 장르나 분위기의 책 3권을 추천하세요.
-출력 형식:
-{
-  "recommendations": ["책 제목1", "책 제목2", "책 제목3"]
-}
-리뷰:
-${review}
+    다음 리뷰의 핵심 내용을 분석하여 비슷한 분위기나 주제의 책 3권을 추천해줘.
+    추천 이유를 100자 이내로 간결하게 작성해줘.
+    출력 형식:
+    {
+      "recommendations": [
+        {
+          "title": "책 제목1",
+          "reason": "추천 이유1"
+        },
+        {
+          "title": "책 제목2",
+          "reason": "추천 이유2"
+        },
+        {
+          "title": "책 제목3",
+          "reason": "추천 이유3"
+        }
+      ]
+    }
+    리뷰:
+    ${review}
   `;
   return await askOpenAIJson(prompt);
 }

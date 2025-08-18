@@ -277,7 +277,7 @@ export async function createReadingScheduleInNotion(plan: ReadingPlan) {
       } : {
         rich_text: []
       },
-      "도서 목표일": {
+      "독서 목표일": {
         date: { start: currentDate }   // 여기 currentDate로 변경
       },
       총페이지: {

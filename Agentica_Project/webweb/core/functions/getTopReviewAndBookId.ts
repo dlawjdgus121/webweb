@@ -23,20 +23,14 @@ export async function getTopReviewAndBookId(): Promise<{ review: string; baseBoo
       throw new Error("❌ 충분한 감상문이 없거나 책 ID를 찾지 못함");
     }
 
-    let reviewText: string;
-
-    // LOB일 경우 스트리밍 처리
-    if (typeof row.REVIEW === "object" && row.REVIEW.setEncoding) {
-      reviewText = await new Promise<string>((resolve, reject) => {
-        let text = "";
-        row.REVIEW.setEncoding("utf8");
-        row.REVIEW.on("data", (chunk: string) => (text += chunk));
-        row.REVIEW.on("end", () => resolve(text));
-        row.REVIEW.on("error", reject);
-      });
-    } else {
-      reviewText = String(row.REVIEW);
-    }
+    const reviewLob = row.REVIEW;
+    const reviewText = await new Promise<string>((resolve, reject) => {
+      let text = "";
+      reviewLob.setEncoding("utf8");
+      reviewLob.on("data", (chunk: string) => (text += chunk));
+      reviewLob.on("end", () => resolve(text));
+      reviewLob.on("error", reject);
+    });
 
     console.log("✍️ 가장 최근 감상문:", reviewText);
     console.log("📚 책 ID:", row.BOOK_ID);
