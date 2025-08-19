@@ -1,0 +1,10 @@
+:root { color-scheme: light dark; }
+a { color: inherit; text-decoration: none; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  min-width: 320px;
+  min-height: 100dvh;
+  overflow: hidden; /* 브라우저 스크롤 차단 → 내부(.chat-log)만 스크롤 */
+}
