@@ -175,10 +175,17 @@ export class BookAgentService {
     console.log("📌 [BookAgentService] recommendBooks 호출됨:", props);
 
     const review = props.review ?? (await extractReviewText(props.prompt ?? ""));
-    await getRecommendedBooksByReview(review); // OpenAI 기반 추천 호출
-    await handleRecommendBooks({ userId: "사용자 ID" });
+    // `getRecommendedBooksByReview` 함수가 추천 이유를 포함한 객체를 반환해야 함
+    const recommendedList = await getRecommendedBooksByReview(review); 
+    const result = await handleRecommendBooks({ userId: "사용자 ID" });
 
-    return { message: "추천 도서 등록 완료!" };
+    // ⭐ 프론트엔드에 추천 도서 제목과 추천 이유를 함께 반환하도록 수정
+    return {
+      message: "추천 도서 등록 완료!",
+      titles: result.titles,
+      recommendations: recommendedList.recommendations, // LLM에서 반환된 추천 목록을 그대로 전달
+      latestReview: review
+    };
   }
 
   // 5) 책갈피(진행도) 업데이트
